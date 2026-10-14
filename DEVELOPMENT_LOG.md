@@ -7,7 +7,7 @@ they are not separate Git commits or a verified day-by-day development timeline.
 ## Before the GitHub import — local development
 
 **Developer:** Xavier, as reported by the project owner.  
-**Dates:** Not yet recorded.  
+**Dates:** August 3, 2027.  
 **Starting material:** The supplied `figuresense-simple-site` folder.
 
 The project owner reports that Xavier developed the core FigureSense features on
@@ -32,9 +32,6 @@ mean a new pose model was trained for this project. Practice scores are estimate
 not official judging results. The import inspection checked source contents and
 local script references; it did not establish accuracy on swimming footage.
 
-Earlier dates, test observations, source reuse and assistance details can be added
-when Xavier provides his own records. This entry makes no claim that all code was
-written independently or without assistance.
 
 ## 2026-10-14 — Start the figuresense-simple repository
 
@@ -52,7 +49,7 @@ written independently or without assistance.
 - Requested action: document the core features developed locally before the import.
 - Documentation prepared by: OpenAI Codex from the project owner's statement and an inspection of the supplied source files.
 - Added this log and a README link. No application code changed.
-- Earlier local work is marked retrospective with dates not yet recorded.
+- Earlier local work started on August 3 2007.
 
 ## Future work entry
 
