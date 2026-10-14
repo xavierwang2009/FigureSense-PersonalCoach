@@ -76,7 +76,7 @@ The repository is private, so testers will need a separate way to access the app
 - Impact: small points are difficult to select, and a finger can cover the exact location being marked. This can make corrections frustrating and less precise.
 - Proposed improvements: enlarge the invisible touch area around each point without obscuring the joint; provide a magnified view while placing or dragging a point; consider small directional adjustment buttons for fine corrections.
 - Verification after implementation: ask the swimmer to place and adjust all three points on the same phone, and confirm that selecting points is easier and the marked joint stays visible while adjusting it.
-- Follow-up: recorded for implementation. No interface change or retest has been completed for this item.
+- Follow-up: Xavier is working on the phone point-placement improvements and will update this entry when the work is complete. Completion and retest results have not yet been reported.
 
 ## Future work entry
 
