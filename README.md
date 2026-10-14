@@ -28,3 +28,7 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
 - "Suggest body points" and "Find the five moments for me" download MediaPipe Pose
   (Google, open source, Apache 2.0) from the internet the first time.
 - Scores are practice estimates, not official judging.
+
+## Development record
+See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for the reported local starting point,
+the GitHub import, and subsequent changes and test observations.
