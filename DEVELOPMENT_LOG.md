@@ -48,7 +48,8 @@ swimmers and ask them to try selecting a practice video, reviewing the suggested
 points, and reading the measurements and practice feedback. Collect what was
 confusing, where detection or measurement seemed wrong, and which suggestions
 were useful. Record actual observations and resulting changes in future entries.
-Swimmer testing and feedback collection are planned; no results are recorded yet.
+At the time of import, swimmer testing and feedback collection were planned.
+Feedback received afterward is recorded below.
 The repository is private, so testers will need a separate way to access the app.
 
 - Requested action: create a fresh repository using the supplied local project.
@@ -66,6 +67,16 @@ The repository is private, so testers will need a separate way to access the app
 - Documentation prepared by: OpenAI Codex from the project owner's statement and an inspection of the supplied source files.
 - Added this log and a README link. No application code changed.
 - Earlier local work is marked retrospective with dates not yet recorded.
+
+## Feedback 1 — Precise point placement on a phone
+
+- Recorded: 2026-10-14. Test date, phone model and browser were not provided.
+- Reported feedback: “On a phone, the hip, knee and ankle are tiny, and placing them precisely with a finger is hard.”
+- Affected task: manually placing or correcting the hip, knee and ankle points on a captured frame.
+- Impact: small points are difficult to select, and a finger can cover the exact location being marked. This can make corrections frustrating and less precise.
+- Proposed improvements: enlarge the invisible touch area around each point without obscuring the joint; provide a magnified view while placing or dragging a point; consider small directional adjustment buttons for fine corrections.
+- Verification after implementation: ask the swimmer to place and adjust all three points on the same phone, and confirm that selecting points is easier and the marked joint stays visible while adjusting it.
+- Follow-up: recorded for implementation. No interface change or retest has been completed for this item.
 
 ## Future work entry
 
