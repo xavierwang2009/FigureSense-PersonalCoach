@@ -7,7 +7,7 @@ they are not separate Git commits or a verified day-by-day development timeline.
 ## Before the GitHub import — local development
 
 **Developer:** Xavier, as reported by the project owner.  
-**Dates:** August 3, 2027.  
+**Dates:** Not yet recorded.  
 **Starting material:** The supplied `figuresense-simple-site` folder.
 
 The project owner reports that Xavier developed the core FigureSense features on
@@ -32,8 +32,24 @@ mean a new pose model was trained for this project. Practice scores are estimate
 not official judging results. The import inspection checked source contents and
 local script references; it did not establish accuracy on swimming footage.
 
+Earlier dates, test observations, source reuse and assistance details can be added
+when Xavier provides his own records. This entry makes no claim that all code was
+written independently or without assistance.
 
 ## 2026-10-14 — Start the figuresense-simple repository
+
+**Why put this version on GitHub now?** The simple local version is ready to be
+shared for early testing. The purpose of adding it to GitHub is to keep a clear
+version of the code before sharing the app with swimmers, collecting their
+feedback, and making improvements based on what they find.
+
+**Next step — swimmer testing:** Share a runnable version with a small group of
+swimmers and ask them to try selecting a practice video, reviewing the suggested
+points, and reading the measurements and practice feedback. Collect what was
+confusing, where detection or measurement seemed wrong, and which suggestions
+were useful. Record actual observations and resulting changes in future entries.
+Swimmer testing and feedback collection are planned; no results are recorded yet.
+The repository is private, so testers will need a separate way to access the app.
 
 - Requested action: create a fresh repository using the supplied local project.
 - Repository: [xavierwang2009/figuresense-simple](https://github.com/xavierwang2009/figuresense-simple), private at creation.
@@ -49,7 +65,7 @@ local script references; it did not establish accuracy on swimming footage.
 - Requested action: document the core features developed locally before the import.
 - Documentation prepared by: OpenAI Codex from the project owner's statement and an inspection of the supplied source files.
 - Added this log and a README link. No application code changed.
-- Earlier local work started on August 3 2007.
+- Earlier local work is marked retrospective with dates not yet recorded.
 
 ## Future work entry
 
