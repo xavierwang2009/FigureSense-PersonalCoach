@@ -26,3 +26,10 @@
 - **Codex reviewed and adjusted:** Kept portrait frames uncropped and long feedback inside the report; included coach’s-eye deductions. Fixed review updates, storage-error messages and new-video separation. Progress comparisons now require matching saved checkpoints.
 - **Checks completed:** Syntax, history/report tests and existing point-control tests passed; the updated page loaded in a browser. Xavier’s supplied files and Codex’s review changes are in separate commits.
 - **Still to check:** Swimmers should save progress, refresh, compare another review and download the report on an actual phone. Saved progress excludes frames; keep the report image separately.
+
+## Next testing step — Xavier’s own Ballet Leg clips
+
+- **Footage recorded:** Xavier performing the Ballet Leg figure.
+- **Xavier will test:** Automatic detection of the five moments and body points; which coach’s-eye items can be measured automatically from the video; and whether the whole-figure summary and practice suggestions match what the clip shows.
+- **What to record:** Missed or misplaced points, manual corrections needed, items that still require human review, and unclear or inaccurate suggestions.
+- **Pending:** Testing results and any resulting code updates. Automatic measurement of coach’s-eye items is a planned investigation, not a completed feature.
