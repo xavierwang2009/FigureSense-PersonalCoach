@@ -9,20 +9,20 @@ const INK = '#10212E', MUTED = '#4F606D', ACCENT = '#0B5FA5', LINE = '#D3DDE4';
 const FONT = 'system-ui, "Segoe UI", sans-serif';
 
 // Write text that wraps at maxWidth. Returns the y below the last line.
-function wrap(ctx, text, x, y, maxWidth, lineHeight) {
+function wrap(ctx, text, x, y, maxWidth, lineHeight, draw = true) {
   const words = text.split(' ');
   let line = '';
   for (const word of words) {
     const test = line ? line + ' ' + word : word;
     if (ctx.measureText(test).width > maxWidth && line) {
-      ctx.fillText(line, x, y);
+      if (draw) ctx.fillText(line, x, y);
       line = word;
       y += lineHeight;
     } else {
       line = test;
     }
   }
-  if (line) ctx.fillText(line, x, y);
+  if (line && draw) ctx.fillText(line, x, y);
   return y + lineHeight;
 }
 
@@ -32,7 +32,18 @@ export function drawReport(figure, out, swimmer, thumb) {
   const thumbW = 300;
   const rows = out.results;
   const top = out.issues.slice(0, 3);
-  const H = 360 + rows.length * 190 + top.length * 70 + 120;
+  const measure = document.createElement('canvas').getContext('2d');
+  const tx = PAD + thumbW + 28;
+  const summaries = rows.map(r => r.saved
+    ? [...r.rows.filter(m => m.deduction && m.deduction.value > 0).map(m => m.metric.label),
+       ...r.missed.map(m => m.text)].join(', ') : '');
+  measure.font = `400 20px ${FONT}`;
+  const heights = summaries.map(text => Math.max(190,
+    wrap(measure, text ? 'Lost points: ' + text : 'All measurements on target', tx, 124, W - PAD - tx, 28, false) + 16));
+  measure.font = `400 24px ${FONT}`;
+  const issueHeight = top.reduce((sum, issue, i) => sum +
+    wrap(measure, `${i + 1}. ${issue.title} (${issue.checkpoint.label}): ${issue.detail}`, PAD, 0, W - 2 * PAD, 32, false) + 6, 0);
+  const H = 254 + heights.reduce((sum, h) => sum + h, 0) + 94 + Math.max(40, issueHeight) + 100;
 
   const c = document.createElement('canvas');
   c.width = W;
@@ -71,13 +82,14 @@ export function drawReport(figure, out, swimmer, thumb) {
 
   // Checkpoints
   y += 40;
-  for (const r of rows) {
+  for (const [index, r] of rows.entries()) {
     ctx.strokeStyle = LINE;
     ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
     const t = r.saved ? thumb(r.checkpoint.id, thumbW) : null;
     if (t) {
-      const th = Math.min(170, t.height);
-      ctx.drawImage(t, 0, 0, t.width, th * t.width / thumbW, PAD, y + 10, thumbW, th);
+      const scale = Math.min(thumbW / t.width, 170 / t.height);
+      const width = t.width * scale, height = t.height * scale;
+      ctx.drawImage(t, PAD + (thumbW - width) / 2, y + 10, width, height);
     } else {
       ctx.fillStyle = '#EAF0F4';
       ctx.fillRect(PAD, y + 10, thumbW, 170);
@@ -93,10 +105,10 @@ export function drawReport(figure, out, swimmer, thumb) {
     if (r.saved) {
       ctx.fillStyle = MUTED;
       ctx.font = `400 20px ${FONT}`;
-      const lost = r.rows.filter(m => m.deduction && m.deduction.value > 0).map(m => m.metric.label);
-      wrap(ctx, lost.length ? 'Lost points: ' + lost.join(', ') : 'All measurements on target', tx, y + 124, W - PAD - tx, 28);
+      const lost = summaries[index];
+      wrap(ctx, lost.length ? 'Lost points: ' + lost : 'All measurements on target', tx, y + 124, W - PAD - tx, 28);
     }
-    y += 190;
+    y += heights[index];
   }
 
   // What to work on

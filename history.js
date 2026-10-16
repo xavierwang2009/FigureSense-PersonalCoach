@@ -28,7 +28,7 @@ export function makeReview(figure, out, swimmer) {
   const scores = {};
   for (const r of out.results) scores[r.checkpoint.id] = r.saved ? +r.score.toFixed(1) : null;
   return {
-    id: Date.now().toString(36),
+    id: crypto.randomUUID(),
     date: new Date().toISOString(),
     swimmer: swimmer.trim(),
     figure: figure.number,
@@ -58,6 +58,8 @@ export function clearHistory() {
 export function previousFor(list, review) {
   const name = review.swimmer.toLowerCase();
   return list
-    .filter(r => r.figure === review.figure && r.swimmer.toLowerCase() === name && r.date < review.date)
+    .filter(r => r.id !== review.id && r.figure === review.figure && r.swimmer.toLowerCase() === name && r.date < review.date
+      && Object.keys(r.scores).length === Object.keys(review.scores).length
+      && Object.keys(review.scores).every(id => (r.scores[id] === null) === (review.scores[id] === null)))
     .sort((a, b) => (a.date < b.date ? 1 : -1))[0] || null;
 }
