@@ -3,7 +3,7 @@
 ## Local development — before GitHub
 
 - **Xavier built:** A browser-based Ballet Leg review app with video upload and playback, frame capture, editable body points, angle measurements, MediaPipe pose suggestions, and practice feedback.
-- **Source:** Xavier’s local `figuresense-simple-site` folder, supplied by the project owner. Local development dates were not recorded; this is a retrospective summary of reported work.
+- **Source:** Xavier’s local `figuresense-simple-site` folder, supplied by the project owner. This is a retrospective summary of reported work.
 - **External library:** MediaPipe provides pose detection. Practice scores are estimates, not official judging results.
 
 ## 2026-10-14 — Share the starting version and identify improvements
