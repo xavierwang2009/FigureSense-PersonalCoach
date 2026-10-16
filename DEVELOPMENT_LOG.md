@@ -2,7 +2,7 @@
 
 ## Local development — before GitHub (June 5, 2026–October 14, 2026)
 
-- **Xavier built:** A browser-based Ballet Leg review app with video upload and playback, frame capture, editable body points, angle measurements, MediaPipe pose suggestions, and practice feedback.
+- **Xavier’s idea and development:** Through his artistic swimming practice, Xavier identified a need for useful feedback between coaching sessions. He created FigureSense to use video analysis and pose detection to help swimmers review body positions, identify areas to improve, and track progress. Working locally in VS Code, he developed six core JavaScript modules, using Ballet Leg as the first test figure.
 - **Source:** Xavier’s local `figuresense-simple-site` folder, supplied by the project owner. This is a retrospective summary of reported work.
 - **External library:** MediaPipe provides pose detection. Practice scores are estimates, not official judging results.
 
