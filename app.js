@@ -22,6 +22,7 @@ const state = {
   selected: null, // the point the next click places
   side: null,     // the working leg found by a scan or suggestion
   picks: null,    // suggested times from "Find the five moments"
+  zoom: 1,        // how much bigger than "fit" the frame is shown
 };
 const cpById = id => FIG.checkpoints.find(c => c.id === id);
 const draft = () => state.drafts[state.current];
@@ -143,6 +144,70 @@ $('picks').addEventListener('click', async e => {
 const canvas = $('markCanvas');
 const ctx = canvas.getContext('2d');
 
+// ---- zoom: show the frame bigger so points can be placed precisely.
+// The canvas keeps its full-size pixels; only its size on screen changes,
+// so the measurements stay exactly the same at every zoom level.
+const ZOOMS = [1, 1.5, 2, 3, 4];
+const frameBox = $('frameBox');
+const zoomRow = document.createElement('div');
+zoomRow.className = 'row';
+zoomRow.innerHTML = `
+  <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+  <span class="num" id="zoomLabel">1×</span>
+  <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+  <button type="button" id="zoomFit">Fit</button>
+  <span class="muted small">Zoom in centers on the selected point. When zoomed, drag empty space to look around.</span>`;
+frameBox.parentElement.before(zoomRow);
+
+// The on-screen scale at 1×: as wide as the box, no taller than 70% of the screen.
+function fitScale() {
+  const w = frameBox.clientWidth || canvas.width;
+  return Math.min(w / canvas.width, (window.innerHeight * 0.7) / canvas.height, 1);
+}
+
+// Resize the canvas on screen. focus (optional) is a point to put in the middle of the view.
+function applyZoom(focus = null) {
+  const d = draft();
+  const zoomed = state.zoom > 1;
+  zoomRow.hidden = !(d && d.frame);
+  $('zoomLabel').textContent = state.zoom + '×';
+  $('zoomOut').disabled = state.zoom === ZOOMS[0];
+  $('zoomIn').disabled = state.zoom === ZOOMS[ZOOMS.length - 1];
+  $('zoomFit').disabled = !zoomed;
+  if (!d || !d.frame) return;
+  // Remember which part of the frame is in the middle of the view now.
+  const old = canvas.getBoundingClientRect();
+  let cx = old.width ? (frameBox.scrollLeft + frameBox.clientWidth / 2) / old.width * canvas.width : canvas.width / 2;
+  let cy = old.height ? (frameBox.scrollTop + frameBox.clientHeight / 2) / old.height * canvas.height : canvas.height / 2;
+  if (focus) { cx = focus.x; cy = focus.y; }
+  const width = canvas.width * fitScale() * state.zoom;
+  canvas.style.width = width + 'px';
+  canvas.style.maxWidth = zoomed ? 'none' : '';
+  canvas.style.maxHeight = zoomed ? 'none' : '';
+  frameBox.style.overflow = zoomed ? 'auto' : '';
+  frameBox.style.placeItems = zoomed ? 'start' : '';
+  frameBox.style.maxHeight = zoomed ? '75vh' : '';
+  // Scroll so the same spot (or the focus point) is in the middle again.
+  const k = width / canvas.width;
+  frameBox.scrollLeft = cx * k - frameBox.clientWidth / 2;
+  frameBox.scrollTop = cy * k - frameBox.clientHeight / 2;
+  draw();
+}
+
+// dir: +1 zoom in, -1 zoom out, 0 back to fit.
+function setZoom(dir) {
+  const i = ZOOMS.indexOf(state.zoom);
+  const next = dir === 0 ? 1 : ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + dir))];
+  if (next === state.zoom) return;
+  state.zoom = next;
+  const d = draft();
+  const p = d && state.selected && d.points[state.selected];
+  applyZoom(dir > 0 && p ? p : null);
+}
+$('zoomIn').addEventListener('click', () => setZoom(1));
+$('zoomOut').addEventListener('click', () => setZoom(-1));
+$('zoomFit').addEventListener('click', () => setZoom(0));
+
 function renderTabs() {
   $('tabs').innerHTML = FIG.checkpoints.map(cp => {
     const d = state.drafts[cp.id], s = state.saved[cp.id];
@@ -236,6 +301,7 @@ function renderMarking(clearStatus = true) {
   $('frameEmpty').hidden = !!(d && d.frame);
   canvas.hidden = !(d && d.frame);
   if (d && d.frame) { canvas.width = d.frame.width; canvas.height = d.frame.height; }
+  applyZoom();
   if (clearStatus) setStatus($('markStatus'), d && d.note ? d.note : '', d && d.note ? 'warn' : '');
 
   // point chips
@@ -384,35 +450,64 @@ function nearestPoint(p) {
   return best;
 }
 
-let dragging = null;
+let dragging = null;   // the point being moved
+let panning = null;    // pressing on empty space: a tap places a point, a drag moves the view
 canvas.addEventListener('pointerdown', e => {
   const d = draft();
   if (!d || !d.frame) return;
   const p = toCanvas(e);
   const hit = nearestPoint(p);
+  canvas.setPointerCapture(e.pointerId);
   if (hit) {
     dragging = hit;
     state.selected = hit;
-    canvas.setPointerCapture(e.pointerId);
-  } else {
-    const name = state.selected && !d.points[state.selected] ? state.selected : (state.selected || nextMissing());
-    if (!name) return;
-    d.points[name] = p;
-    state.selected = nextMissing();
+    renderMarking(false);
+    return;
   }
-  renderMarking(false);
+  panning = { x: e.clientX, y: e.clientY, left: frameBox.scrollLeft, top: frameBox.scrollTop, moved: false, at: p };
 });
 canvas.addEventListener('pointermove', e => {
-  if (!dragging) return;
-  const p = toCanvas(e);
-  draft().points[dragging] = { x: Math.max(0, Math.min(canvas.width, p.x)), y: Math.max(0, Math.min(canvas.height, p.y)) };
-  draw();
+  if (dragging) {
+    const p = toCanvas(e);
+    draft().points[dragging] = { x: Math.max(0, Math.min(canvas.width, p.x)), y: Math.max(0, Math.min(canvas.height, p.y)) };
+    draw();
+    return;
+  }
+  if (panning) {
+    const dx = e.clientX - panning.x, dy = e.clientY - panning.y;
+    if (Math.hypot(dx, dy) > 6) panning.moved = true;   // more than a small wobble counts as a drag
+    if (panning.moved && state.zoom > 1) {
+      frameBox.scrollLeft = panning.left - dx;
+      frameBox.scrollTop = panning.top - dy;
+    }
+  }
 });
-const endDrag = () => { if (dragging) { dragging = null; renderMarking(false); } };
-canvas.addEventListener('pointerup', endDrag);
-canvas.addEventListener('pointercancel', endDrag);
+
+// Put the selected point (or the next missing one) where the swimmer tapped.
+function placeAt(p) {
+  const d = draft();
+  const name = state.selected || nextMissing();
+  if (!name) return;
+  d.points[name] = p;
+  state.selected = nextMissing();
+  renderMarking(false);
+}
+canvas.addEventListener('pointerup', () => {
+  if (dragging) { dragging = null; renderMarking(false); return; }
+  if (panning) {
+    const tap = !panning.moved, at = panning.at;
+    panning = null;
+    if (tap) placeAt(at);
+  }
+});
+canvas.addEventListener('pointercancel', () => {
+  if (dragging) { dragging = null; renderMarking(false); }
+  panning = null;
+});
 
 canvas.addEventListener('keydown', e => {
+  if (e.key === '+' || e.key === '=') { setZoom(1); e.preventDefault(); return; }
+  if (e.key === '-') { setZoom(-1); e.preventDefault(); return; }
   const d = draft();
   const name = state.selected;
   if (!d || !name) return;
@@ -431,7 +526,7 @@ canvas.addEventListener('keydown', e => {
   e.preventDefault();
   renderMarking(false);
 });
-window.addEventListener('resize', draw);
+window.addEventListener('resize', () => applyZoom());
 
 // ---------------------------------------------------------------- 4. results
 function renderResults() {
@@ -511,7 +606,7 @@ $('startOver').addEventListener('click', () => {
     return;
   }
   armed = false;
-  state.drafts = {}; state.saved = {}; state.picks = null; state.side = null; state.selected = null;
+  state.drafts = {}; state.saved = {}; state.picks = null; state.side = null; state.selected = null; state.zoom = 1;
   state.current = FIG.checkpoints[0].id;
   $('startOver').textContent = 'Start over';
   $('startOverNote').textContent = 'Cleared.';
