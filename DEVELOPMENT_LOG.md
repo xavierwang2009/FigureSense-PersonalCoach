@@ -1,6 +1,6 @@
 # FigureSense development log
 
-## Local development — before GitHub
+## Local development — before GitHub (June 5, 2026–October 14, 2026)
 
 - **Xavier built:** A browser-based Ballet Leg review app with video upload and playback, frame capture, editable body points, angle measurements, MediaPipe pose suggestions, and practice feedback.
 - **Source:** Xavier’s local `figuresense-simple-site` folder, supplied by the project owner. This is a retrospective summary of reported work.
