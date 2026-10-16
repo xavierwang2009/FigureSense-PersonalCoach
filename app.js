@@ -158,6 +158,12 @@ zoomRow.innerHTML = `
   <button type="button" id="zoomFit">Fit</button>
   <span class="muted small">Zoom in centers on the selected point. When zoomed, drag empty space to look around.</span>`;
 frameBox.parentElement.before(zoomRow);
+frameBox.style.minWidth = '0';
+canvas.style.height = 'auto';
+for (const button of zoomRow.querySelectorAll('button')) {
+  button.style.minWidth = '44px';
+  button.style.minHeight = '44px';
+}
 
 // The on-screen scale at 1×: as wide as the box, no taller than 70% of the screen.
 function fitScale() {
@@ -170,6 +176,7 @@ function applyZoom(focus = null) {
   const d = draft();
   const zoomed = state.zoom > 1;
   zoomRow.hidden = !(d && d.frame);
+  zoomRow.style.display = d && d.frame ? '' : 'none';
   $('zoomLabel').textContent = state.zoom + '×';
   $('zoomOut').disabled = state.zoom === ZOOMS[0];
   $('zoomIn').disabled = state.zoom === ZOOMS[ZOOMS.length - 1];
@@ -177,8 +184,10 @@ function applyZoom(focus = null) {
   if (!d || !d.frame) return;
   // Remember which part of the frame is in the middle of the view now.
   const old = canvas.getBoundingClientRect();
-  let cx = old.width ? (frameBox.scrollLeft + frameBox.clientWidth / 2) / old.width * canvas.width : canvas.width / 2;
-  let cy = old.height ? (frameBox.scrollTop + frameBox.clientHeight / 2) / old.height * canvas.height : canvas.height / 2;
+  const box = frameBox.getBoundingClientRect();
+  // Use the actual canvas position: a fitted portrait frame may be centered.
+  let cx = old.width ? (box.left + frameBox.clientWidth / 2 - old.left) / old.width * canvas.width : canvas.width / 2;
+  let cy = old.height ? (box.top + frameBox.clientHeight / 2 - old.top) / old.height * canvas.height : canvas.height / 2;
   if (focus) { cx = focus.x; cy = focus.y; }
   const width = canvas.width * fitScale() * state.zoom;
   canvas.style.width = width + 'px';
@@ -438,9 +447,9 @@ function toCanvas(e) {
   const r = canvas.getBoundingClientRect();
   return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height };
 }
-function nearestPoint(p) {
+function nearestPoint(p, pointerType) {
   const d = draft();
-  const reach = GRAB_PX * screenScale();
+  const reach = (pointerType === 'touch' ? 28 : GRAB_PX) * screenScale();
   let best = null, bestDist = reach;
   for (const [name, q] of Object.entries(d.points)) {
     if (!q) continue;
@@ -450,26 +459,31 @@ function nearestPoint(p) {
   return best;
 }
 
-let dragging = null;   // the point being moved
+let activePointer = null; // ignore extra fingers until the current gesture ends
+let dragging = null;   // the point being moved and where the finger grabbed it
 let panning = null;    // pressing on empty space: a tap places a point, a drag moves the view
 canvas.addEventListener('pointerdown', e => {
+  if (activePointer !== null || e.button !== 0) return;
   const d = draft();
   if (!d || !d.frame) return;
   const p = toCanvas(e);
-  const hit = nearestPoint(p);
+  const hit = nearestPoint(p, e.pointerType);
+  activePointer = e.pointerId;
   canvas.setPointerCapture(e.pointerId);
   if (hit) {
-    dragging = hit;
+    dragging = { name: hit, dx: d.points[hit].x - p.x, dy: d.points[hit].y - p.y };
     state.selected = hit;
-    renderMarking(false);
+    // Do not resize or scroll the canvas in the middle of a gesture.
+    draw();
     return;
   }
   panning = { x: e.clientX, y: e.clientY, left: frameBox.scrollLeft, top: frameBox.scrollTop, moved: false, at: p };
 });
 canvas.addEventListener('pointermove', e => {
+  if (e.pointerId !== activePointer) return;
   if (dragging) {
     const p = toCanvas(e);
-    draft().points[dragging] = { x: Math.max(0, Math.min(canvas.width, p.x)), y: Math.max(0, Math.min(canvas.height, p.y)) };
+    draft().points[dragging.name] = { x: Math.max(0, Math.min(canvas.width, p.x + dragging.dx)), y: Math.max(0, Math.min(canvas.height, p.y + dragging.dy)) };
     draw();
     return;
   }
@@ -492,7 +506,9 @@ function placeAt(p) {
   state.selected = nextMissing();
   renderMarking(false);
 }
-canvas.addEventListener('pointerup', () => {
+canvas.addEventListener('pointerup', e => {
+  if (e.pointerId !== activePointer) return;
+  activePointer = null;
   if (dragging) { dragging = null; renderMarking(false); return; }
   if (panning) {
     const tap = !panning.moved, at = panning.at;
@@ -500,10 +516,15 @@ canvas.addEventListener('pointerup', () => {
     if (tap) placeAt(at);
   }
 });
-canvas.addEventListener('pointercancel', () => {
-  if (dragging) { dragging = null; renderMarking(false); }
+function cancelGesture(e) {
+  if (e.pointerId !== activePointer) return;
+  activePointer = null;
+  dragging = null;
   panning = null;
-});
+  renderMarking(false);
+}
+canvas.addEventListener('pointercancel', cancelGesture);
+canvas.addEventListener('lostpointercapture', cancelGesture);
 
 canvas.addEventListener('keydown', e => {
   if (e.key === '+' || e.key === '=') { setZoom(1); e.preventDefault(); return; }
@@ -521,8 +542,8 @@ canvas.addEventListener('keydown', e => {
   const moves = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   if (!p || !moves[e.key]) return;
   const n = e.shiftKey ? 5 : 1;
-  p.x += moves[e.key][0] * n;
-  p.y += moves[e.key][1] * n;
+  p.x = Math.max(0, Math.min(canvas.width, p.x + moves[e.key][0] * n));
+  p.y = Math.max(0, Math.min(canvas.height, p.y + moves[e.key][1] * n));
   e.preventDefault();
   renderMarking(false);
 });

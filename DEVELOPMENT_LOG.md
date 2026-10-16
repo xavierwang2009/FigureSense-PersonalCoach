@@ -93,3 +93,12 @@ Copy this section for each actual work session:
 - Observed result, including problems:
 - Evidence: commit, test output or permitted screenshot:
 - Remaining work:
+
+## 2026-10-16 — Review the phone zoom update
+
+- Xavier supplied an updated `app.js` adding Fit/zoom controls, selected-point zoom focus, and drag-to-pan behavior. His supplied version is committed separately before review corrections.
+- Codex reviewed and corrected the interaction code at the user's request: preserve the grab offset when dragging, ignore additional fingers during a gesture, clean up cancelled gestures, keep keyboard nudges inside the image, enlarge touch hit areas, and account for centered portrait frames when zooming.
+- Added 44-pixel minimum zoom-button dimensions and kept the canvas aspect ratio explicit.
+- Checks: JavaScript syntax passed; `node tests/point-controls.cjs` passed regression checks for touch/mouse reach, drag offset, extra fingers, release/cancellation, keyboard bounds and coordinate conversion.
+- Browser check: a synthetic 360×640 video at a 390×844 viewport captured successfully; zoom reached 4× and Fit returned to 1×. Image coordinates stayed 360×640 and the page did not overflow horizontally.
+- Feedback 1: implementation updated; a swimmer retest on an actual phone remains pending. No swimming accuracy or physical-device usability result is claimed.
