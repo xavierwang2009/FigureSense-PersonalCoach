@@ -7,6 +7,8 @@ import { scoreCheckpoint, scoreFigure, waterFrame } from './geometry.js';
 import { poseArt } from './poses.js';
 import { detectPose, scanVideo, seekTo } from './autoscan.js';
 import { pickBalletSequence, pointsFromPose } from './ballet-assist.js';
+import { loadHistory, makeReview, saveReview, deleteReview, clearHistory, previousFor } from './history.js';
+import { drawReport } from './report.js';
 
 const $ = id => document.getElementById(id);
 const FRAME = 1 / 30;            // one frame at 30 fps
@@ -553,10 +555,16 @@ window.addEventListener('resize', () => applyZoom());
 function renderResults() {
   const box = $('resultsBody');
   const out = scoreFigure(FIG, state.saved, LABELS);
+  // The results changed, so an old report image is out of date.
+  $('reportBox').hidden = true;
+  setStatus($('keepStatus'), '');
   if (out.figureScore === null) {
     box.innerHTML = '<p class="muted">Save at least one scored checkpoint to see results.</p>';
+    $('keepBox').hidden = true;
     return;
   }
+  $('keepBox').hidden = false;
+  $('saveProgress').textContent = historyId ? 'Update my saved progress' : 'Save to my progress';
   const savedCount = out.results.filter(r => r.saved).length;
   const top = out.issues.slice(0, 3);
   box.innerHTML = `
@@ -584,6 +592,109 @@ function renderResults() {
     paint(c.getContext('2d'), s.frame, s.points, k, { lineWidth: 2 });
   }
 }
+
+// ---------------------------------------------------------------- keep results
+let historyId = null;   // once this review is saved, saving again updates it instead of adding a copy
+
+// Make HTML-safe text from what someone typed (so a name can't break the page).
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+
+// A small copy of one checkpoint's saved frame, with its lines drawn on.
+function thumb(id, width) {
+  const s = state.saved[id];
+  if (!s) return null;
+  const k = width / s.frame.width;
+  const c = document.createElement('canvas');
+  c.width = width;
+  c.height = Math.round(s.frame.height * k);
+  paint(c.getContext('2d'), s.frame, s.points, k, { lineWidth: 2 });
+  return c;
+}
+
+$('saveProgress').addEventListener('click', () => {
+  const out = scoreFigure(FIG, state.saved, LABELS);
+  if (out.figureScore === null) return;
+  const review = makeReview(FIG, out, $('swimmerName').value);
+  if (historyId) review.id = historyId;   // same review: replace the earlier save
+  if (!saveReview(review)) {
+    setStatus($('keepStatus'), "This browser won't let the app save (a private window or blocked site data). Make a report image instead.", 'error');
+    return;
+  }
+  setStatus($('keepStatus'), historyId ? 'Saved progress updated.' : 'Saved to your progress on this device.', 'ok');
+  historyId = review.id;
+  $('saveProgress').textContent = 'Update my saved progress';
+  renderProgress();
+});
+
+$('makeReport').addEventListener('click', () => {
+  const out = scoreFigure(FIG, state.saved, LABELS);
+  if (out.figureScore === null) return;
+  const image = drawReport(FIG, out, $('swimmerName').value.trim(), thumb);
+  const url = image.toDataURL('image/png');
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = 'Report with the figure score, the five checkpoints and what to work on';
+  $('reportImgBox').replaceChildren(img);
+  $('reportDownload').href = url;
+  // Inside the Claude page viewer, downloads are blocked, so only the save-the-image tip shows there.
+  $('reportDownload').hidden = !!window.claude;
+  $('reportBox').hidden = false;
+  setStatus($('keepStatus'), 'Report image ready.', 'ok');
+});
+
+function renderProgress() {
+  const list = loadHistory().slice().sort((a, b) => (a.date < b.date ? 1 : -1));   // newest first
+  $('clearProgress').hidden = !list.length;
+  if (!list.length) {
+    $('progressBody').innerHTML = '<p class="muted">No saved reviews yet. Use "Save to my progress" under Results.</p>';
+    return;
+  }
+  const rows = list.map(r => {
+    const prev = previousFor(list, r);
+    let change = '<span class="muted">first</span>';
+    if (prev) {
+      const d = r.figureScore - prev.figureScore;
+      change = Math.abs(d) < 0.005 ? '<span class="muted">same</span>'
+        : `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(2)}</span>`;
+    }
+    const when = new Date(r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return `<tr>
+      <td>${when}</td>
+      <td>${r.swimmer ? esc(r.swimmer) : '<span class="muted">—</span>'}</td>
+      <td class="num">${r.figureScore.toFixed(2)}${r.provisional ? ' <span class="pill small">provisional</span>' : ''}</td>
+      <td class="num">${change}</td>
+      <td>${r.top.length ? esc(r.top[0]) : '<span class="muted">nothing lost points</span>'}</td>
+      <td><button type="button" class="link" data-del="${r.id}">Delete</button></td>
+    </tr>`;
+  }).join('');
+  $('progressBody').innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Date</th><th>Swimmer</th><th class="num">Score</th><th class="num">Change</th><th>Top thing to work on</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+$('progressBody').addEventListener('click', e => {
+  const id = e.target.dataset && e.target.dataset.del;
+  if (!id) return;
+  deleteReview(id);
+  if (id === historyId) { historyId = null; $('saveProgress').textContent = 'Save to my progress'; }
+  renderProgress();
+});
+
+let clearArmed = false;
+$('clearProgress').addEventListener('click', () => {
+  if (!clearArmed) {
+    clearArmed = true;
+    $('clearProgress').textContent = 'Click again to delete every saved review';
+    setTimeout(() => { clearArmed = false; $('clearProgress').textContent = 'Clear all saved reviews'; }, 5000);
+    return;
+  }
+  clearArmed = false;
+  clearHistory();
+  historyId = null;
+  $('clearProgress').textContent = 'Clear all saved reviews';
+  $('clearNote').textContent = 'All saved reviews deleted.';
+  renderProgress();
+});
 
 function issueHtml(issue) {
   const drills = (FIG.drillsFor[issue.drillKey] || []).slice(0, 2).map(id => DRILLS[id]);
@@ -631,6 +742,7 @@ $('startOver').addEventListener('click', () => {
   state.current = FIG.checkpoints[0].id;
   $('startOver').textContent = 'Start over';
   $('startOverNote').textContent = 'Cleared.';
+  historyId = null;   // a new review (saved progress from before is kept)
   renderPicks(); renderMarking(); renderResults();
 });
 
@@ -638,3 +750,4 @@ $('startOver').addEventListener('click', () => {
 renderFigure();
 renderMarking();
 renderResults();
+renderProgress();

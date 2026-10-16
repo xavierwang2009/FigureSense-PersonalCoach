@@ -142,6 +142,15 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .drills { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 8px; }
 .drill { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; font-size: .93rem; }
 .drill .where { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+/* Keeping results */
+.keep { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
+input[type=text] { font: 400 1rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 42px; width: min(100%, 18rem); }
+.report { display: grid; gap: 10px; }
+.report img { width: min(100%, 540px); border: 1px solid var(--line); border-radius: 8px; }
+a.file-label { text-decoration: none; display: inline-block; }
+.up { color: var(--good); font-weight: 700; } .down { color: var(--bad); font-weight: 700; }
+button.link { min-height: 32px; padding: 4px 10px; font-size: .85rem; }
+
 ul.plain { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; max-width: 72ch; }
 
 @media (max-width: 820px) {
@@ -236,11 +245,38 @@ ul.plain { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; max-width: 
   <section id="results" aria-labelledby="h-results">
     <h2 id="h-results"><span class="n">4</span> Results</h2>
     <div id="resultsBody"><p class="muted">Save at least one scored checkpoint to see results.</p></div>
+    <div id="keepBox" class="keep" hidden>
+      <h3>Keep these results</h3>
+      <div class="row">
+        <label for="swimmerName">Swimmer name (optional)</label>
+        <input type="text" id="swimmerName" maxlength="40" placeholder="e.g. first name" autocomplete="off">
+      </div>
+      <div class="row">
+        <button class="primary" id="saveProgress" type="button">Save to my progress</button>
+        <button id="makeReport" type="button">Make report image</button>
+      </div>
+      <p class="status" id="keepStatus" role="status"></p>
+      <div id="reportBox" class="report" hidden>
+        <div id="reportImgBox"></div>
+        <div class="row">
+          <a id="reportDownload" class="file-label" download="figuresense-report.png" href="#">Download image</a>
+          <span class="muted small">Or right-click (long-press on a phone) the image to save or share it.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Progress -->
+  <section id="progress" aria-labelledby="h-progress">
+    <h2 id="h-progress"><span class="n">5</span> Your progress</h2>
+    <p class="muted small">Saved reviews stay in this browser on this device only. The video and frames are never kept, just the scores.</p>
+    <div id="progressBody"><p class="muted">No saved reviews yet. Use "Save to my progress" under Results.</p></div>
+    <div class="row"><button id="clearProgress" type="button" hidden>Clear all saved reviews</button><span class="muted small" id="clearNote"></span></div>
   </section>
 
   <!-- 5. About -->
   <section id="about" aria-labelledby="h-about">
-    <h2 id="h-about"><span class="n">5</span> How the numbers work</h2>
+    <h2 id="h-about"><span class="n">6</span> How the numbers work</h2>
     <ul class="plain">
       <li>Angles are measured against the water line you mark, so a tilted camera doesn't change them. They are 2D estimates from one camera angle.</li>
       <li>Each requirement loses 0.2, 0.5 or 1.0 points when it is off by up to 15°, up to 30°, or more. Within 1.2° counts as on target. These limits are practice estimates.</li>
