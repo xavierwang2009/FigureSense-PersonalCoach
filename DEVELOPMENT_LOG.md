@@ -27,9 +27,10 @@
 - **Checks completed:** Syntax, history/report tests and existing point-control tests passed; the updated page loaded in a browser. Xavier’s supplied files and Codex’s review changes are in separate commits.
 - **Still to check:** Swimmers should save progress, refresh, compare another review and download the report on an actual phone. Saved progress excludes frames; keep the report image separately.
 
-## Next testing step — Xavier’s own Ballet Leg clips
+## 2026-10-17 — Xavier tests his Ballet Leg clip
 
-- **Footage recorded:** Xavier performing the Ballet Leg figure.
-- **Xavier will test:** Automatic detection of the five moments and body points; which coach’s-eye items can be measured automatically from the video; and whether the whole-figure summary and practice suggestions match what the clip shows.
-- **What to record:** Missed or misplaced points, manual corrections needed, items that still require human review, and unclear or inaccurate suggestions.
-- **Pending:** Testing results and any resulting code updates. Automatic measurement of coach’s-eye items is a planned investigation, not a completed feature.
+- **Xavier reported:** MediaPipe scanned his 12-second clip in about 24 seconds and identified the right working leg. Body points generally landed on him, including a straight-up Ballet Leg, but some checkpoint selections were wrong.
+- **Xavier fixed:** In `ballet-assist.js`, rejected downward reflections as flat layouts and favored a vertical thigh with a low foot for Bent Knee. In `app.js`, counted and applied only the body points needed by the selected checkpoint.
+- **Codex reviewed and adjusted:** Preserved yesterday’s saved-progress fixes when merging the older `app.js` copy. Tightened Bent Knee selection to reject feet far above or below hip level and leave the moment unselected when no candidate qualifies. Hip height is only a rough water-level proxy.
+- **Checks completed:** Synthetic-landmark and suggestion-count tests, existing history/report and point-control tests, and JavaScript syntax checks passed. Xavier’s submitted files and Codex’s adjustments are committed separately.
+- **Next:** Xavier should rerun the clip with the tightened rules and confirm all five moments. Automatic coach’s-eye measurements and the whole-figure summary/suggestions still need evaluation; Codex did not independently test the clip.

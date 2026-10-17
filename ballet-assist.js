@@ -83,13 +83,13 @@ export function pickBalletSequence(samples) {
 
   // Bent Knee: the most vertical thigh while the foot is still low near the water
   // (the toe sits at the other knee, not lifting toward the ballet leg).
-  // If no frame has a low foot, fall back to the most vertical thigh.
+  // Hip height is a rough water-level proxy. Leave the moment unselected if no frame qualifies.
   const pickBent = list => {
     const bent = list.filter(f => isBentKnee(f.m));
     if (!bent.length) return null;
-    const footLow = bent.filter(f => f.m.lift < 0.25);
-    const pool = footLow.length ? footLow : bent;
-    return pool.reduce((a, b) => (b.m.thighFromUp < a.m.thighFromUp ? b : a));
+    const footLow = bent.filter(f => Math.abs(f.m.lift) < 0.25);
+    if (!footLow.length) return null;
+    return footLow.reduce((a, b) => (b.m.thighFromUp < a.m.thighFromUp ? b : a));
   };
   const bk1 = pickBent(before);
   const bk2 = pickBent(after);
