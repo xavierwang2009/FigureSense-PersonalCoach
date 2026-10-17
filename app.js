@@ -1,6 +1,6 @@
 // app.js
 // Connects the page to the other modules: video, capture, marking points,
-// saving checkpoints, results and drills. Saved progress stays in this browser; videos and frames stay in this tab.
+// saving checkpoints, results and drills. Everything stays in this browser tab.
 
 import { LANDMARKS, BALLET_LEG as FIG, DRILLS, pointsNeeded, videoLink } from './figures.js';
 import { scoreCheckpoint, scoreFigure, waterFrame } from './geometry.js';
@@ -64,8 +64,6 @@ $('fileInput').addEventListener('change', e => {
   if (!file) return;
   if (!file.type.startsWith('video/')) { $('videoInfo').textContent = 'That file is not a video. Choose an MP4 or MOV clip.'; return; }
   if (file.size > MAX_BYTES) { $('videoInfo').textContent = 'That video is over 200 MB. Trim it to just the figure and try again.'; return; }
-  // A different clip starts a new review, leaving saved progress untouched.
-  resetReview();
   if (player.src) URL.revokeObjectURL(player.src);
   player.src = URL.createObjectURL(file);   // plays straight from the device, no upload
   $('videoInfo').textContent = 'Loading…';
@@ -286,7 +284,8 @@ async function suggestPoints(quiet = false) {
     const { side, points } = pointsFromPose(pose, state.side);
     state.side = side;
     let placed = 0;
-    for (const [name, p] of Object.entries(points)) if (p) { d.points[name] = p; placed++; }
+    const wanted = pointsNeeded(cpById(state.current));   // only the points this checkpoint uses
+    for (const [name, p] of Object.entries(points)) if (p && wanted.includes(name)) { d.points[name] = p; placed++; }
     state.selected = nextMissing();
     setStatus($('markStatus'), `Suggested ${placed} body points. Check each one and drag it if needed` +
       (d.points.waterA ? '.' : ', then mark the water line.'), placed ? 'ok' : 'warn');
@@ -617,11 +616,7 @@ $('saveProgress').addEventListener('click', () => {
   const out = scoreFigure(FIG, state.saved, LABELS);
   if (out.figureScore === null) return;
   const review = makeReview(FIG, out, $('swimmerName').value);
-  if (historyId) {
-    const previous = loadHistory().find(r => r.id === historyId);
-    if (previous) review.date = previous.date;
-    review.id = historyId;
-  }   // same review: replace the earlier save
+  if (historyId) review.id = historyId;   // same review: replace the earlier save
   if (!saveReview(review)) {
     setStatus($('keepStatus'), "This browser won't let the app save (a private window or blocked site data). Make a report image instead.", 'error');
     return;
@@ -630,11 +625,6 @@ $('saveProgress').addEventListener('click', () => {
   historyId = review.id;
   $('saveProgress').textContent = 'Update my saved progress';
   renderProgress();
-});
-
-$('swimmerName').addEventListener('input', () => {
-  $('reportBox').hidden = true;
-  setStatus($('keepStatus'), '');
 });
 
 $('makeReport').addEventListener('click', () => {
@@ -662,7 +652,7 @@ function renderProgress() {
   }
   const rows = list.map(r => {
     const prev = previousFor(list, r);
-    let change = '<span class="muted">—</span>';
+    let change = '<span class="muted">first</span>';
     if (prev) {
       const d = r.figureScore - prev.figureScore;
       change = Math.abs(d) < 0.005 ? '<span class="muted">same</span>'
@@ -675,7 +665,7 @@ function renderProgress() {
       <td class="num">${r.figureScore.toFixed(2)}${r.provisional ? ' <span class="pill small">provisional</span>' : ''}</td>
       <td class="num">${change}</td>
       <td>${r.top.length ? esc(r.top[0]) : '<span class="muted">nothing lost points</span>'}</td>
-      <td><button type="button" class="link" data-del="${esc(r.id)}">Delete</button></td>
+      <td><button type="button" class="link" data-del="${r.id}">Delete</button></td>
     </tr>`;
   }).join('');
   $('progressBody').innerHTML = `<div class="table-wrap"><table>
@@ -686,10 +676,7 @@ function renderProgress() {
 $('progressBody').addEventListener('click', e => {
   const id = e.target.dataset && e.target.dataset.del;
   if (!id) return;
-  if (!deleteReview(id)) {
-    $('clearNote').textContent = 'Could not delete the review. Browser storage may be blocked.';
-    return;
-  }
+  deleteReview(id);
   if (id === historyId) { historyId = null; $('saveProgress').textContent = 'Save to my progress'; }
   renderProgress();
 });
@@ -703,13 +690,9 @@ $('clearProgress').addEventListener('click', () => {
     return;
   }
   clearArmed = false;
-  $('clearProgress').textContent = 'Clear all saved reviews';
-  if (!clearHistory()) {
-    $('clearNote').textContent = 'Could not clear reviews. Browser storage may be blocked.';
-    return;
-  }
+  clearHistory();
   historyId = null;
-  $('saveProgress').textContent = 'Save to my progress';
+  $('clearProgress').textContent = 'Clear all saved reviews';
   $('clearNote').textContent = 'All saved reviews deleted.';
   renderProgress();
 });
@@ -751,22 +734,18 @@ $('startOver').addEventListener('click', () => {
   if (!armed) {
     armed = true;
     $('startOver').textContent = 'Click again to clear everything';
-    $('startOverNote').textContent = 'This clears the current review. Saved progress is kept.';
+    $('startOverNote').textContent = 'This removes all frames, points and results.';
     setTimeout(() => { armed = false; $('startOver').textContent = 'Start over'; $('startOverNote').textContent = ''; }, 5000);
     return;
   }
   armed = false;
-  resetReview();
-  $('startOver').textContent = 'Start over';
-  $('startOverNote').textContent = 'Cleared.';
-});
-
-function resetReview() {
   state.drafts = {}; state.saved = {}; state.picks = null; state.side = null; state.selected = null; state.zoom = 1;
   state.current = FIG.checkpoints[0].id;
+  $('startOver').textContent = 'Start over';
+  $('startOverNote').textContent = 'Cleared.';
   historyId = null;   // a new review (saved progress from before is kept)
   renderPicks(); renderMarking(); renderResults();
-}
+});
 
 // ---------------------------------------------------------------- go
 renderFigure();

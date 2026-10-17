@@ -52,8 +52,11 @@ export function workingSide(samples) {
   return best.left >= best.right ? 'left' : 'right';
 }
 
-const isLayout = m => m.lift < 0.12 && m.kneeLift < 0.12 && m.knee > 150;
-const isBentKnee = m => m.knee < 130 && m.thighFromUp < 40;
+// Flat: knee and ankle level with the hip. Math.abs matters: a leg pointing DOWN
+// (often MediaPipe latching onto the reflection under the water) is not flat.
+const isLayout = m => Math.abs(m.lift) < 0.12 && Math.abs(m.kneeLift) < 0.12 && m.knee > 150;
+// Bent knee: thigh near vertical with the knee clearly up and clearly bent.
+const isBentKnee = m => m.knee < 130 && m.thighFromUp < 35 && m.kneeLift > 0.3;
 
 // Suggest a time for each checkpoint. Returns { side, times: { bl1, bk1, ballet, bk2, bl2 } }
 // with null for any moment it could not find.
@@ -78,11 +81,15 @@ export function pickBalletSequence(samples) {
   const before = frames.filter(f => f.time < ballet.time);
   const after = frames.filter(f => f.time > ballet.time);
 
-  // Bent Knee: thigh closest to vertical with the knee clearly bent.
+  // Bent Knee: the most vertical thigh while the foot is still low near the water
+  // (the toe sits at the other knee, not lifting toward the ballet leg).
+  // If no frame has a low foot, fall back to the most vertical thigh.
   const pickBent = list => {
     const bent = list.filter(f => isBentKnee(f.m));
     if (!bent.length) return null;
-    return bent.reduce((a, b) => (b.m.thighFromUp < a.m.thighFromUp ? b : a));
+    const footLow = bent.filter(f => f.m.lift < 0.25);
+    const pool = footLow.length ? footLow : bent;
+    return pool.reduce((a, b) => (b.m.thighFromUp < a.m.thighFromUp ? b : a));
   };
   const bk1 = pickBent(before);
   const bk2 = pickBent(after);
