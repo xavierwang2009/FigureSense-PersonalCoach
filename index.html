@@ -136,7 +136,7 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 /* Step 4: results */
 .score { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
 .score .big { font: 500 2.6rem var(--mono); font-variant-numeric: tabular-nums; }
-.result-cp { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+.result-cp { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
 .result-cp canvas { width: 100%; height: auto; border-radius: 6px; background: var(--sunk); }
 .issues { margin: 0; padding-left: 1.3rem; display: grid; gap: 14px; }
 .drills { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 8px; }
@@ -157,6 +157,24 @@ ul.plain { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; max-width: 
   .cps, .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mark-grid, .result-cp { grid-template-columns: minmax(0, 1fr); }
 }
+/* Stage 1: comparison, measured checks, summary, plan */
+.gauge { display: block; margin-bottom: 4px; max-width: 100%; }
+.gauge .g-clean { fill: var(--good); }
+.gauge .g-small { fill: var(--warn); }
+.gauge .g-medium { fill: var(--bad); opacity: .7; }
+.gauge .g-large { fill: var(--bad); }
+.gauge .g-mark { stroke: var(--ink); stroke-width: 2.5; }
+.chip.optional { border-style: dashed; }
+.chip small { color: var(--muted); font-size: .75em; }
+.check-note { display: block; font-size: .8rem; color: var(--muted); }
+.check-note.ok { color: var(--good); }
+.check-note.bad { color: var(--bad); }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
+.summary > div { display: grid; gap: 2px; }
+.summary b { font-size: 1.05rem; }
+.summary-focus { grid-column: 1 / -1; margin: 4px 0 0; }
+.plan h4 { margin: 12px 0 6px; }
+.target-key { color: #1E9A54; font-weight: 600; }
 </style>
 
 </head>

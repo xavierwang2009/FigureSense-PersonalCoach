@@ -88,16 +88,106 @@ export function evaluateMetric(metric, points, labels = {}) {
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-// Score one checkpoint. checksMet is a list of true/false, one per coach's-eye item.
+// ---- coach's-eye items measured from the points
+
+// A length to measure heights in, so results don't depend on how far away the camera is.
+// The shin (knee to ankle) is preferred; other body segments stand in, scaled to about a shin.
+export function referenceScale(pts) {
+  const pairs = [['knee', 'ankle', 1], ['hip', 'knee', 1], ['shoulder', 'hip', 1.1], ['hip', 'ankle', 0.5]];
+  for (const [a, b, factor] of pairs) {
+    if (pts[a] && pts[b]) {
+      const d = distance(pts[a], pts[b]) * factor;
+      if (d >= 15) return d;
+    }
+  }
+  return null;
+}
+
+// Height of point p above the waterline, in shin lengths (negative = below the surface).
+function heightAbove(p, pts, frame, scale) {
+  return ((p.x - pts.waterA.x) * frame.n.x + (p.y - pts.waterA.y) * frame.n.y) / scale;
+}
+
+// Direction of the segment p→q measured against the waterline, in degrees.
+function heading(p, q, frame) {
+  const v = { x: q.x - p.x, y: q.y - p.y };
+  return deg(Math.atan2(v.x * frame.n.x + v.y * frame.n.y, v.x * frame.u.x + v.y * frame.u.y));
+}
+
+// Measure one test. pts = this checkpoint's points; others = { checkpointId: { points } }.
+// Returns { value } or { error } (error = can't be measured yet, so fall back to ticking by eye).
+export function evaluateTest(test, pts, others = {}, labels = {}) {
+  const name = p => (labels[p] || p).toLowerCase();
+  const missing = test.pts.filter(p => !pts[p]);
+  if (!pts.waterA || !pts.waterB) missing.unshift('water line');
+  if (missing.length) return { error: 'Mark the ' + missing.map(name).join(' and ') + ' to measure this.' };
+  let frame;
+  try { frame = waterFrame(pts.waterA, pts.waterB); } catch (err) { return { error: err.message }; }
+  let ref = null, refFrame = null;
+  if (test.ref) {
+    ref = others[test.ref] && others[test.ref].points;
+    if (!ref) return { error: `Save ${labels['cp:' + test.ref] || 'the earlier checkpoint'} first to measure this.` };
+    if (!ref.waterA || !ref.waterB || test.pts.some(p => !ref[p])) return { error: 'The earlier checkpoint is missing points this needs.' };
+    try { refFrame = waterFrame(ref.waterA, ref.waterB); } catch (err) { return { error: err.message }; }
+  }
+  try {
+    const [a, b, c] = test.pts.map(p => pts[p]);
+    if (test.kind === 'toWater') return { value: angleToWater(a, b, frame, test.pts.map(name)) };
+    if (test.kind === 'joint') return { value: jointAngle(a, b, c, test.pts.map(name)) };
+    if (test.kind === 'segmentShift') {
+      // How far a segment turned since the earlier checkpoint, each against its own waterline.
+      let value = Math.abs(heading(a, b, frame) - heading(ref[test.pts[0]], ref[test.pts[1]], refFrame));
+      if (value > 180) value = 360 - value;
+      return { value };
+    }
+    const scale = referenceScale(pts);
+    if (!scale) return { error: 'Mark two body points (like knee and ankle) so heights can be measured.' };
+    if (test.kind === 'nearSurface') return { value: Math.max(...test.pts.map(p => Math.abs(heightAbove(pts[p], pts, frame, scale)))) };
+    if (test.kind === 'pointGap') return { value: distance(a, b) / scale };
+    if (test.kind === 'heightShift') {
+      const refScale = referenceScale(ref);
+      if (!refScale) return { error: 'The earlier checkpoint needs two body points for scale.' };
+      return { value: Math.abs(heightAbove(a, pts, frame, scale) - heightAbove(ref[test.pts[0]], ref, refFrame, refScale)) };
+    }
+    return { error: 'Unknown test.' };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// Decide one coach's-eye item: measured when every test can be measured, otherwise ticked by eye.
+export function evaluateCheck(check, ticked, pts, others, labels) {
+  if (check.tests) {
+    const parts = check.tests.map(t => {
+      const out = evaluateTest(t, pts, others, labels);
+      if (out.error) return { test: t, error: out.error };
+      const pass = t.max !== undefined ? out.value <= t.max + 1e-9 : out.value >= t.min - 1e-9;
+      const digits = t.unit === '°' ? 1 : 2;
+      return {
+        test: t, value: out.value, pass,
+        display: out.value.toFixed(digits) + t.unit,
+        limit: (t.max !== undefined ? '≤ ' + t.max : '≥ ' + t.min) + t.unit,
+      };
+    });
+    const unmeasured = parts.find(p => p.error);
+    if (!unmeasured) return { check, measured: true, pass: parts.every(p => p.pass), parts };
+    return { check, measured: false, pass: !!ticked, reason: unmeasured.error };
+  }
+  return { check, measured: false, pass: !!ticked, reason: null };
+}
+
+// Score one checkpoint. checksMet is a list of true/false (ticked by eye), one per coach's-eye item;
+// a measured item uses its measurement instead. others = the other checkpoints, for "since" tests.
 //   score = 10 − deductions − 0.2 × items not met   (kept between 0 and 10)
-export function scoreCheckpoint(checkpoint, points, checksMet = [], labels = {}) {
+export function scoreCheckpoint(checkpoint, points, checksMet = [], labels = {}, others = {}) {
   const rows = checkpoint.metrics.map(metric => ({ metric, ...evaluateMetric(metric, points, labels) }));
   const deductions = rows.reduce((sum, r) => sum + (r.deduction ? r.deduction.value : 0), 0);
-  const missed = checkpoint.checks.filter((_, i) => !checksMet[i]);
+  const checkResults = checkpoint.checks.map((c, i) => evaluateCheck(c, checksMet[i], points, others, labels));
+  const missed = checkResults.filter(r => !r.pass).map(r => r.check);
   const checkPenalty = missed.length * CHECK_PENALTY;
   const complete = rows.every(r => !r.error);
   const score = clamp(10 - deductions - checkPenalty, 0, 10);
-  return { rows, deductions, missed, checkPenalty, complete, score };
+  return { rows, deductions, checkResults, missed, checkPenalty, complete, score };
 }
 
 // Score the whole figure from the SAVED checkpoints only.
@@ -107,7 +197,7 @@ export function scoreFigure(figure, saved, labels = {}) {
   const results = figure.checkpoints.map(cp => {
     const s = saved[cp.id];
     if (!s) return { checkpoint: cp, saved: false };
-    return { checkpoint: cp, saved: true, time: s.time, ...scoreCheckpoint(cp, s.points, s.checks, labels) };
+    return { checkpoint: cp, saved: true, time: s.time, ...scoreCheckpoint(cp, s.points, s.checks, labels, saved) };
   });
   const weighted = results.filter(r => r.saved && r.checkpoint.weight > 0);
   const totalWeight = weighted.reduce((sum, r) => sum + r.checkpoint.weight, 0);
@@ -138,15 +228,15 @@ export function rankIssues(figure, results) {
         });
       }
     }
-    r.checkpoint.checks.forEach((check, i) => {
-      if (r.missed.includes(check)) {
-        issues.push({
-          checkpoint: r.checkpoint, kind: 'coach', title: check.text,
-          detail: `Not ticked as met (−${CHECK_PENALTY.toFixed(1)})`,
-          drillKey: check.drills, cost: CHECK_PENALTY * share * figure.dd,
-        });
-      }
-    });
+    for (const c of r.checkResults) {
+      if (c.pass) continue;
+      const failed = c.measured ? c.parts.filter(p => !p.pass).map(p => `${p.test.label} ${p.display} (needs ${p.limit})`).join('; ') : '';
+      issues.push({
+        checkpoint: r.checkpoint, kind: 'coach', title: c.check.text,
+        detail: (c.measured ? `Measured: ${failed}` : 'Not ticked as met') + ` (−${CHECK_PENALTY.toFixed(1)})`,
+        drillKey: c.check.drills, cost: CHECK_PENALTY * share * figure.dd,
+      });
+    }
   }
   return issues.filter(i => i.cost > 0).sort((a, b) => b.cost - a.cost);
 }

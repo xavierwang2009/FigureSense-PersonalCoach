@@ -50,3 +50,43 @@ export function poseArt(name) {
     <text x="${W / 2}" y="${H - 8}" text-anchor="middle" class="pose-caption">${s.target}</text>
   </svg>`;
 }
+
+// ---------------------------------------------------------------- comparison
+
+// A small bar that shows how far off one measurement is.
+// Green = on target, amber = small, red = medium or large. The dark tick is the swimmer.
+export function deviationGauge(deviation, tol) {
+  const [small, medium] = tol;
+  const max = medium * 1.5;                 // the bar runs from 0 to 1.5 × the medium limit
+  const W = 90, H = 14;
+  const x = v => (Math.min(v, max) / max) * W;
+  const clean = small * 0.08;
+  const seg = (a, b, cls) => `<rect x="${x(a).toFixed(1)}" y="3" width="${(x(b) - x(a)).toFixed(1)}" height="8" class="${cls}" />`;
+  const m = x(deviation);
+  return `<svg class="gauge" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${deviation.toFixed(1)} away from the target">
+    ${seg(0, clean, 'g-clean')}${seg(clean, small, 'g-small')}${seg(small, medium, 'g-medium')}${seg(medium, max, 'g-large')}
+    <line x1="${m.toFixed(1)}" y1="0" x2="${m.toFixed(1)}" y2="${H}" class="g-mark" />
+  </svg>`;
+}
+
+// Where a measured segment SHOULD point. Returns { from, to } in the same units as the points.
+//   toWater: same length, along the water.   toVertical: same length, straight up from the water.
+//   joint:   the last segment turned so the angle at the middle point equals the target.
+export function targetLine(metric, pts, frame) {
+  const [a, b, c] = metric.pts.map(p => pts[p]);
+  if (metric.kind === 'toWater' || metric.kind === 'toVertical') {
+    const v = { x: b.x - a.x, y: b.y - a.y };
+    const len = Math.hypot(v.x, v.y);
+    const dir = metric.kind === 'toWater' ? frame.u : frame.n;
+    const sign = v.x * dir.x + v.y * dir.y >= 0 ? 1 : -1;   // keep the same general direction
+    return { from: a, to: { x: a.x + dir.x * sign * len, y: a.y + dir.y * sign * len } };
+  }
+  // joint: start from b→a and turn it by the target angle, toward the side c is on.
+  const ba = { x: a.x - b.x, y: a.y - b.y }, bc = { x: c.x - b.x, y: c.y - b.y };
+  const lenA = Math.hypot(ba.x, ba.y), lenC = Math.hypot(bc.x, bc.y);
+  const t = metric.ideal * Math.PI / 180;
+  const turn = s => ({ x: (ba.x * Math.cos(s * t) - ba.y * Math.sin(s * t)) / lenA, y: (ba.x * Math.sin(s * t) + ba.y * Math.cos(s * t)) / lenA });
+  const p1 = turn(1), p2 = turn(-1);
+  const closer = (p1.x * bc.x + p1.y * bc.y) >= (p2.x * bc.x + p2.y * bc.y) ? p1 : p2;
+  return { from: b, to: { x: b.x + closer.x * lenC, y: b.y + closer.y * lenC } };
+}

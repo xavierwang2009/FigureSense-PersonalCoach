@@ -1,5 +1,6 @@
 // figures.js
 // The "rulebook": what FigureSense knows about Ballet Leg.
+// Data only, no logic. Values come from the FigureSense prototype,
 // which takes them from the World Aquatics figure manual (February 2026).
 
 // The points a swimmer marks on a frame.
@@ -35,8 +36,10 @@ export const BALLET_LEG = {
         { id: 'surfaceleg', label: 'Surface leg alignment', kind: 'toWater',    pts: ['hip', 'ankleB'],  ideal: 0, tol: TOL },
       ],
       checks: [
-        { text: 'Face, chest, thighs and feet at the surface', drills: 'height' },
-        { text: 'Ears, shoulders, hips and ankles in one horizontal line', drills: 'bodyline' },
+        { text: 'Face, chest, thighs and feet at the surface', drills: 'height',
+          tests: [{ kind: 'nearSurface', pts: ['shoulder', 'hip', 'knee', 'ankle'], label: 'Furthest point from the surface', max: 0.35, unit: ' shin' }] },
+        { text: 'Ears, shoulders, hips and ankles in one horizontal line', drills: 'bodyline',
+          tests: [{ kind: 'toWater', pts: ['shoulder', 'ankle'], label: 'Shoulder-to-ankle line vs surface', max: 10, unit: '°' }] },
       ],
     },
     {
@@ -49,7 +52,12 @@ export const BALLET_LEG = {
       ],
       checks: [
         { text: 'Toe follows the inside of the extended leg', drills: 'toepath' },
-        { text: 'Head and trunk stay still; surface leg stays extended', drills: 'height' },
+        { text: 'Head and trunk stay still; surface leg stays extended', drills: 'height',
+          tests: [
+            { kind: 'heightShift', pts: ['shoulder'], ref: 'bl1', label: 'Shoulder height change since the start', max: 0.3, unit: ' shin' },
+            { kind: 'segmentShift', pts: ['shoulder', 'hip'], ref: 'bl1', label: 'Trunk turned since the start', max: 8, unit: '°' },
+            { kind: 'toWater', pts: ['hip', 'ankleB'], label: 'Surface leg vs surface', max: 10, unit: '°' },
+          ] },
       ],
     },
     {
@@ -63,10 +71,16 @@ export const BALLET_LEG = {
         { id: 'surfaceleg', label: 'Surface leg alignment',         kind: 'toWater',    pts: ['hip', 'ankleB'],            ideal: 0,   tol: TOL },
       ],
       checks: [
-        { text: 'Raised leg fully extended', drills: 'knee' },
+        { text: 'Raised leg fully extended', drills: 'knee',
+          tests: [{ kind: 'joint', pts: ['hip', 'knee', 'ankle'], label: 'Knee angle', min: 165, unit: '°' }] },
         { text: 'Toes pointed', drills: 'toes' },
-        { text: 'Body and surface leg stay horizontally aligned', drills: 'bodyline' },
-        { text: 'Thigh stayed still while the knee straightened', drills: 'thigh' },
+        { text: 'Body and surface leg stay horizontally aligned', drills: 'bodyline',
+          tests: [
+            { kind: 'toWater', pts: ['shoulder', 'hip'], label: 'Trunk vs surface', max: 10, unit: '°' },
+            { kind: 'toWater', pts: ['hip', 'ankleB'], label: 'Surface leg vs surface', max: 10, unit: '°' },
+          ] },
+        { text: 'Thigh stayed still while the knee straightened', drills: 'thigh',
+          tests: [{ kind: 'segmentShift', pts: ['hip', 'knee'], ref: 'bk1', label: 'Thigh turned since Bent Knee · entry', max: 10, unit: '°' }] },
       ],
     },
     {
@@ -78,8 +92,14 @@ export const BALLET_LEG = {
         { id: 'thigh',      label: 'Thigh away from vertical', kind: 'toVertical', pts: ['hip', 'knee'],    ideal: 0, tol: TOL },
       ],
       checks: [
-        { text: 'Thigh stays still as the knee bends', drills: 'thigh' },
-        { text: 'Height kept; head and trunk stay still', drills: 'height' },
+        { text: 'Thigh stays still as the knee bends', drills: 'thigh',
+          tests: [{ kind: 'segmentShift', pts: ['hip', 'knee'], ref: 'ballet', label: 'Thigh turned since Ballet Leg', max: 10, unit: '°' }] },
+        { text: 'Height kept; head and trunk stay still', drills: 'height',
+          tests: [
+            { kind: 'heightShift', pts: ['hip'], ref: 'ballet', label: 'Hip height change since Ballet Leg', max: 0.3, unit: ' shin' },
+            { kind: 'heightShift', pts: ['shoulder'], ref: 'ballet', label: 'Shoulder height change since Ballet Leg', max: 0.3, unit: ' shin' },
+            { kind: 'segmentShift', pts: ['shoulder', 'hip'], ref: 'ballet', label: 'Trunk turned since Ballet Leg', max: 8, unit: '°' },
+          ] },
       ],
     },
     {
@@ -90,8 +110,13 @@ export const BALLET_LEG = {
         { id: 'surfaceleg', label: 'Surface leg alignment', kind: 'toWater', pts: ['hip', 'ankleB'],  ideal: 0, tol: TOL },
       ],
       checks: [
-        { text: 'Full extension as the feet join', drills: 'feet' },
-        { text: 'Finished in horizontal alignment', drills: 'bodyline' },
+        { text: 'Full extension as the feet join', drills: 'feet',
+          tests: [
+            { kind: 'joint', pts: ['hip', 'knee', 'ankle'], label: 'Knee angle', min: 165, unit: '°' },
+            { kind: 'pointGap', pts: ['ankle', 'ankleB'], label: 'Gap between the feet', max: 0.35, unit: ' shin' },
+          ] },
+        { text: 'Finished in horizontal alignment', drills: 'bodyline',
+          tests: [{ kind: 'toWater', pts: ['shoulder', 'ankle'], label: 'Shoulder-to-ankle line vs surface', max: 10, unit: '°' }] },
         { text: 'Controlled, even motion into the finish', drills: 'control' },
       ],
     },
@@ -187,10 +212,24 @@ export const DRILLS = {
   },
 };
 
+// Coach's-eye "tests": when the needed points are marked, an item is measured
+// instead of ticked by eye. Each test passes when its value is at most "max"
+// (or at least "min"). "ref" compares with another saved checkpoint.
+// "shin" units are lengths in shin lengths (knee to ankle), so they don't depend on how
+// far the camera is. These limits are the prototype's practice estimates.
+
 // The points each checkpoint needs (every point any of its metrics uses, plus the waterline).
 export function pointsNeeded(checkpoint) {
   const names = new Set(['waterA', 'waterB']);
   for (const m of checkpoint.metrics) m.pts.forEach(p => names.add(p));
+  return Object.keys(LANDMARKS).filter(n => names.has(n));
+}
+
+// Points a checkpoint can use: the needed ones plus optional ones that let
+// coach's-eye items be measured automatically.
+export function pointsUsed(checkpoint) {
+  const names = new Set(pointsNeeded(checkpoint));
+  for (const c of checkpoint.checks) for (const t of c.tests || []) t.pts.forEach(p => names.add(p));
   return Object.keys(LANDMARKS).filter(n => names.has(n));
 }
 

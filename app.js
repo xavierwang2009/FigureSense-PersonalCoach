@@ -2,9 +2,9 @@
 // Connects the page to the other modules: video, capture, marking points,
 // saving checkpoints, results and drills. Saved progress stays in this browser; videos and frames stay in this tab.
 
-import { LANDMARKS, BALLET_LEG as FIG, DRILLS, pointsNeeded, videoLink } from './figures.js';
+import { LANDMARKS, BALLET_LEG as FIG, DRILLS, pointsNeeded, pointsUsed, videoLink } from './figures.js';
 import { scoreCheckpoint, scoreFigure, waterFrame } from './geometry.js';
-import { poseArt } from './poses.js';
+import { poseArt, deviationGauge, targetLine } from './poses.js';
 import { detectPose, scanVideo, seekTo } from './autoscan.js';
 import { pickBalletSequence, pointsFromPose } from './ballet-assist.js';
 import { loadHistory, makeReview, saveReview, deleteReview, clearHistory, previousFor } from './history.js';
@@ -15,6 +15,7 @@ const FRAME = 1 / 30;            // one frame at 30 fps
 const MAX_BYTES = 200 * 1024 * 1024;
 const GRAB_PX = 16;              // how close (on screen) a click must be to grab a point
 const LABELS = Object.fromEntries(Object.entries(LANDMARKS).map(([k, v]) => [k, v.label]));
+for (const cp of FIG.checkpoints) LABELS['cp:' + cp.id] = cp.label;   // used in "save X first" messages
 
 // ---------------------------------------------------------------- state
 const state = {
@@ -226,7 +227,7 @@ function renderTabs() {
     const d = state.drafts[cp.id], s = state.saved[cp.id];
     let label = '<small>Empty</small>';
     if (s && d && snapshot(d) !== snapshot(s)) label = '<small class="edits">Unsaved changes</small>';
-    else if (s) label = `<small class="saved">Saved · ${scoreCheckpoint(cp, s.points, s.checks, LABELS).score.toFixed(1)}</small>`;
+    else if (s) label = `<small class="saved">Saved · ${scoreCheckpoint(cp, s.points, s.checks, LABELS, state.saved).score.toFixed(1)}</small>`;
     else if (d && d.frame) label = '<small>Not saved yet</small>';
     return `<button type="button" class="tab" data-cp="${cp.id}" aria-pressed="${cp.id === state.current}">${cp.label}${label}</button>`;
   }).join('');
@@ -286,7 +287,7 @@ async function suggestPoints(quiet = false) {
     const { side, points } = pointsFromPose(pose, state.side);
     state.side = side;
     let placed = 0;
-    const wanted = pointsNeeded(cpById(state.current));   // only the points this checkpoint uses
+    const wanted = pointsUsed(cpById(state.current));   // only the points this checkpoint uses
     for (const [name, p] of Object.entries(points)) if (p && wanted.includes(name)) { d.points[name] = p; placed++; }
     state.selected = nextMissing();
     setStatus($('markStatus'), `Suggested ${placed} body points. Check each one and drag it if needed` +
@@ -303,7 +304,10 @@ $('suggest').addEventListener('click', () => suggestPoints());
 
 function nextMissing() {
   const d = draft();
-  return pointsNeeded(cpById(state.current)).find(n => !d || !d.points[n]) || null;
+  const cp = cpById(state.current);
+  const needed = pointsNeeded(cp);
+  const order = [...needed, ...pointsUsed(cp).filter(n => !needed.includes(n))];
+  return order.find(n => !d || !d.points[n]) || null;
 }
 
 function renderMarking(clearStatus = true) {
@@ -319,13 +323,15 @@ function renderMarking(clearStatus = true) {
   if (clearStatus) setStatus($('markStatus'), d && d.note ? d.note : '', d && d.note ? 'warn' : '');
 
   // point chips
-  $('chips').innerHTML = pointsNeeded(cp).map(n => `<button type="button" class="chip${d && d.points[n] ? ' placed' : ''}"
-      data-pt="${n}" aria-pressed="${state.selected === n}" title="${LANDMARKS[n].hint}">${LANDMARKS[n].label}</button>`).join('');
+  const needed = pointsNeeded(cp);
+  $('chips').innerHTML = pointsUsed(cp).map(n => `<button type="button" class="chip${d && d.points[n] ? ' placed' : ''}${needed.includes(n) ? '' : ' optional'}"
+      data-pt="${n}" aria-pressed="${state.selected === n}" title="${LANDMARKS[n].hint}${needed.includes(n) ? '' : ' (optional: lets a coach\'s-eye item be measured)'}">${LANDMARKS[n].label}${needed.includes(n) ? '' : ' <small>optional</small>'}</button>`).join('');
   $('pointHint').textContent = state.selected ? `Next: ${LANDMARKS[state.selected].hint}.` : (d && d.frame ? 'All points placed. Drag any that are off.' : 'Capture a frame first.');
 
   // coach's-eye checks
-  $('checks').innerHTML = '<legend>Coach\'s eye: tick what you see</legend>' + cp.checks.map((c, i) => `
-    <label class="check"><input type="checkbox" data-check="${i}" ${d && d.checks[i] ? 'checked' : ''} ${d && d.frame ? '' : 'disabled'}><span>${c.text}</span></label>`).join('');
+  $('checks').innerHTML = '<legend>Coach\'s eye</legend>' + cp.checks.map((c, i) => `
+    <label class="check"><input type="checkbox" data-check="${i}" ${d && d.checks[i] ? 'checked' : ''} ${d && d.frame ? '' : 'disabled'}>
+      <span>${c.text}<small class="check-note" data-note="${i}"></small></span></label>`).join('');
 
   renderLive();
   renderTabs();
@@ -350,13 +356,30 @@ $('checks').addEventListener('change', e => {
 function renderLive() {
   const cp = cpById(state.current);
   const d = draft();
-  const result = scoreCheckpoint(cp, d ? d.points : {}, d ? d.checks : [], LABELS);
+  const result = scoreCheckpoint(cp, d ? d.points : {}, d ? d.checks : [], LABELS, state.saved);
   $('liveRows').innerHTML = result.rows.map(r => `<tr>
       <td>${r.metric.label}</td>
       <td class="num">${r.metric.ideal}°</td>
       <td class="num">${r.error ? '–' : r.value.toFixed(1) + '°'}</td>
-      <td>${r.error ? `<span class="pill none">${r.error}</span>` : `<span class="pill ${r.deduction.band}">${r.deduction.label}${r.deduction.value ? ' −' + r.deduction.value.toFixed(1) : ''}</span>`}</td>
+      <td>${r.error ? `<span class="pill none">${r.error}</span>` : `${deviationGauge(r.deviation, r.metric.tol)} <span class="pill ${r.deduction.band}">${r.deduction.label}${r.deduction.value ? ' −' + r.deduction.value.toFixed(1) : ''}</span>`}</td>
     </tr>`).join('');
+  // Coach's-eye items: measured ones are decided by the points; the rest are ticked by eye.
+  result.checkResults.forEach((c, i) => {
+    const box = $('checks').querySelector(`[data-check="${i}"]`);
+    const note = $('checks').querySelector(`[data-note="${i}"]`);
+    if (!box || !note) return;
+    if (c.measured) {
+      box.checked = c.pass;
+      box.disabled = true;
+      note.textContent = 'Measured: ' + c.parts.map(p => `${p.test.label.toLowerCase()} ${p.display} (needs ${p.limit})`).join('; ');
+      note.className = 'check-note ' + (c.pass ? 'ok' : 'bad');
+    } else {
+      box.checked = !!(d && d.checks[i]);
+      box.disabled = !(d && d.frame);
+      note.textContent = c.check.tests ? 'Tick by eye for now. ' + c.reason : 'Tick by eye.';
+      note.className = 'check-note';
+    }
+  });
   const ready = d && d.frame && result.complete;
   $('liveScore').textContent = ready ? `Checkpoint score ${result.score.toFixed(1)} / 10` : '';
   const s = state.saved[cp.id];
@@ -374,7 +397,7 @@ $('save').addEventListener('click', () => {
   }
   try { waterFrame(d.points.waterA, d.points.waterB); }
   catch (err) { setStatus($('markStatus'), err.message, 'error'); return; }
-  const result = scoreCheckpoint(cp, d.points, d.checks, LABELS);
+  const result = scoreCheckpoint(cp, d.points, d.checks, LABELS, state.saved);
   const broken = result.rows.find(r => r.error);
   if (broken) { setStatus($('markStatus'), broken.error, 'error'); return; }
   // Checkpoints must be in time order.
@@ -399,7 +422,10 @@ function screenScale() {
   return r.width ? canvas.width / r.width : 1;
 }
 
+const TARGET = '#2BBF6A';   // green: where a line should be
+
 // Draws a frame plus its points onto any 2D context, scaled by k.
+// opts.targets: metrics to draw the target line for.
 function paint(c, frame, points, k, opts = {}) {
   const css = getComputedStyle(document.documentElement);
   const mark = css.getPropertyValue('--mark').trim() || '#C9471F';
@@ -422,6 +448,19 @@ function paint(c, frame, points, k, opts = {}) {
   line(hip, P('knee'), mark, lw);
   line(P('knee'), P('ankle'), mark, lw);
   line(hip, P('ankleB'), mark, lw);
+  // Where each measurement that lost points SHOULD be: green dashed lines.
+  if (opts.targets && wa && wb) {
+    let f = null;
+    try { f = waterFrame(wa, wb); } catch { /* skip */ }
+    const scaled = {};
+    for (const n of Object.keys(points)) scaled[n] = P(n);
+    for (const metric of f ? opts.targets : []) {
+      if (!metric.pts.every(n => scaled[n])) continue;
+      const t = targetLine(metric, scaled, f);
+      line(t.from, t.to, TARGET, lw * 1.1, [7 * lw / 3, 5 * lw / 3]);
+      c.beginPath(); c.arc(t.to.x, t.to.y, 4 * lw / 3, 0, Math.PI * 2); c.fillStyle = TARGET; c.fill();
+    }
+  }
   for (const [name, p] of Object.entries(points)) {
     if (!p) continue;
     const q = { x: p.x * k, y: p.y * k };
@@ -576,12 +615,15 @@ function renderResults() {
       <span>figure score (out of ${(10 * FIG.dd).toFixed(0)})<br><span class="muted small">practice score ${out.practice.toFixed(2)} / 10 × difficulty ${FIG.dd}</span></span>
       ${out.provisional ? `<span class="pill small">Provisional · ${savedCount} of 5 checkpoints saved</span>` : '<span class="pill clean">All 5 checkpoints saved</span>'}
     </div>
+    ${summaryHtml(out)}
     <div>
       <h3>What to work on</h3>
       ${top.length ? `<ol class="issues">${top.map(issueHtml).join('')}</ol>` : '<p class="muted">Nothing lost points in the saved checkpoints. Keep it up.</p>'}
     </div>
+    ${planHtml(out)}
     <div style="display:grid;gap:14px">
       <h3>Checkpoint by checkpoint</h3>
+      <p class="muted small">Orange lines are what you did. <span class="target-key">Green dashed lines</span> show where a line should be, for each measurement that lost points.</p>
       ${out.results.map(resultHtml).join('')}
     </div>`;
   // Draw the small frames.
@@ -592,9 +634,12 @@ function renderResults() {
     const k = Math.min(1, 480 / s.frame.width);
     c.width = Math.round(s.frame.width * k);
     c.height = Math.round(s.frame.height * k);
-    paint(c.getContext('2d'), s.frame, s.points, k, { lineWidth: 2 });
+    paint(c.getContext('2d'), s.frame, s.points, k, { lineWidth: 2, targets: lostMetrics(r) });
   }
 }
+
+// The measurements in one result that lost points (these get a target line).
+const lostMetrics = r => r.rows.filter(row => row.deduction && row.deduction.value > 0).map(row => row.metric);
 
 // ---------------------------------------------------------------- keep results
 let historyId = null;   // once this review is saved, saving again updates it instead of adding a copy
@@ -610,7 +655,8 @@ function thumb(id, width) {
   const c = document.createElement('canvas');
   c.width = width;
   c.height = Math.round(s.frame.height * k);
-  paint(c.getContext('2d'), s.frame, s.points, k, { lineWidth: 2 });
+  const r = scoreCheckpoint(cpById(id), s.points, s.checks, LABELS, state.saved);
+  paint(c.getContext('2d'), s.frame, s.points, k, { lineWidth: 2, targets: lostMetrics(r) });
   return c;
 }
 
@@ -719,11 +765,62 @@ function issueHtml(issue) {
   const drills = (FIG.drillsFor[issue.drillKey] || []).slice(0, 2).map(id => DRILLS[id]);
   return `<li>
     <b>${issue.title}</b> <span class="muted">· ${issue.checkpoint.label}</span><br>
-    <span class="small">${issue.detail}. Costs about <span class="num">${issue.cost.toFixed(2)}</span> figure points.</span>
-    <div class="drills">${drills.map(d => `
-      <div class="drill"><span class="where">${d.where} · ${d.dose}</span><b>${d.name}</b><span>${d.how}</span>
-        <a href="${videoLink(d)}" target="_blank" rel="noopener">Watch the demo (${d.video.channel})</a></div>`).join('')}
-    </div></li>`;
+    <span class="small">${issue.detail}. Costs about <span class="num">${issue.cost.toFixed(2)}</span> figure points.</span><br>
+    <span class="small muted">Drills: ${drills.map(d => d.name).join(', ')} (see the practice plan)</span></li>`;
+}
+
+// ---- whole-figure summary
+function summaryHtml(out) {
+  const saved = out.results.filter(r => r.saved);
+  const scored = saved.filter(r => r.checkpoint.weight > 0);
+  const rows = saved.flatMap(r => r.rows);
+  const onTarget = rows.filter(row => row.deduction && row.deduction.value === 0).length;
+  const checks = saved.flatMap(r => r.checkResults);
+  const met = checks.filter(c => c.pass).length;
+  const measured = checks.filter(c => c.measured).length;
+  const best = scored.length ? scored.reduce((a, b) => (b.score > a.score ? b : a)) : null;
+  const worst = scored.length ? scored.reduce((a, b) => (b.score < a.score ? b : a)) : null;
+  // Which kind of problem cost the most: measured angles or coach's-eye items.
+  const lostAngles = out.issues.filter(i => i.kind === 'measured').reduce((s, i) => s + i.cost, 0);
+  const lostCoach = out.issues.filter(i => i.kind === 'coach').reduce((s, i) => s + i.cost, 0);
+  const focus = !out.issues.length ? 'Nothing lost points. Keep the same shape and timing.'
+    : lostAngles >= lostCoach ? 'Most points were lost on body angles, so focus on the shapes in the drills below.'
+    : "Most points were lost on coach's-eye items, so focus on control and finish.";
+  return `<div class="summary">
+    <div><span class="muted small">Strongest checkpoint</span><b>${best ? `${best.checkpoint.label} · ${best.score.toFixed(1)}` : '—'}</b></div>
+    <div><span class="muted small">Needs the most work</span><b>${worst && worst !== best ? `${worst.checkpoint.label} · ${worst.score.toFixed(1)}` : '—'}</b></div>
+    <div><span class="muted small">Measurements on target</span><b class="num">${onTarget} of ${rows.length}</b></div>
+    <div><span class="muted small">Coach's-eye items met</span><b class="num">${met} of ${checks.length}</b><span class="muted small">${measured} measured, ${checks.length - measured} by eye</span></div>
+    <p class="summary-focus">${focus}</p>
+  </div>`;
+}
+
+// ---- practice plan: drills for the biggest problems, grouped by where you do them
+function planHtml(out) {
+  const picked = new Map();   // drill id -> the problems it helps with
+  for (const issue of out.issues.slice(0, 5)) {
+    for (const id of (FIG.drillsFor[issue.drillKey] || []).slice(0, 2)) {
+      if (!picked.has(id)) picked.set(id, []);
+      const why = issue.title;
+      if (!picked.get(id).includes(why)) picked.get(id).push(why);
+    }
+  }
+  if (!picked.size) return '';
+  const card = id => {
+    const d = DRILLS[id];
+    return `<div class="drill"><span class="where">${d.dose}</span><b>${d.name}</b><span>${d.how}</span>
+      <span class="small muted">Helps with: ${picked.get(id).join('; ')}</span>
+      <a href="${videoLink(d)}" target="_blank" rel="noopener">Watch the demo (${d.video.channel})</a></div>`;
+  };
+  const ids = [...picked.keys()];
+  const pool = ids.filter(id => DRILLS[id].where === 'Pool');
+  const land = ids.filter(id => DRILLS[id].where !== 'Pool');   // "Land" and "Land or pool"
+  return `<div class="plan">
+    <h3>Practice plan</h3>
+    <p class="muted small">Drills for the top problems above. Practise with a coach or lifeguard present, and never practise breath-holding alone.</p>
+    ${pool.length ? `<h4>In the pool</h4><div class="drills">${pool.map(card).join('')}</div>` : ''}
+    ${land.length ? `<h4>On land</h4><div class="drills">${land.map(card).join('')}</div>` : ''}
+  </div>`;
 }
 
 function resultHtml(r) {
@@ -734,8 +831,12 @@ function resultHtml(r) {
   }
   const rows = r.rows.map(row => `<tr><td>${row.metric.label}</td><td class="num">${row.metric.ideal}°</td>
       <td class="num">${row.value.toFixed(1)}°</td><td><span class="pill ${row.deduction.band}">${row.deduction.label}${row.deduction.value ? ' −' + row.deduction.value.toFixed(1) : ''}</span></td></tr>`).join('');
-  const checks = cp.checks.map(c => `<tr><td>${c.text}</td><td class="num">Met</td><td class="num">${r.missed.includes(c) ? 'No' : 'Yes'}</td>
-      <td><span class="pill ${r.missed.includes(c) ? 'small' : 'clean'}">${r.missed.includes(c) ? 'Not met −0.2' : 'Met'}</span></td></tr>`).join('');
+  const checks = r.checkResults.map(c => {
+    const target = c.measured ? c.parts.map(p => p.limit).join('<br>') : 'Met';
+    const yours = c.measured ? c.parts.map(p => p.display).join('<br>') : (c.pass ? 'Ticked' : 'Not ticked');
+    return `<tr><td>${c.check.text}<br><span class="muted small">${c.measured ? 'Measured' : 'By eye'}</span></td><td class="num">${target}</td><td class="num">${yours}</td>
+      <td><span class="pill ${c.pass ? 'clean' : 'small'}">${c.pass ? 'Met' : 'Not met −0.2'}</span></td></tr>`;
+  }).join('');
   return `<div class="result-cp">
     <canvas data-thumb="${cp.id}" aria-label="${cp.label} frame with the measured lines"></canvas>
     <div style="display:grid;gap:8px;min-width:0">

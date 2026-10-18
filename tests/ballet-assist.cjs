@@ -41,6 +41,7 @@ Object.assign(harness.app, {
   detectPose: async () => ({}),
   pointsFromPose: () => ({side:'right', points:{hip:p(10,10), knee:p(20,20), ankle:p(30,30)}}),
   pointsNeeded: () => ['hip'],
+  pointsUsed: () => ['hip'],   // Stage 1: suggestions also fill optional points
 });
 vm.runInContext('suggestPoints()', harness.app).then(() => {
   assert.match(harness.el('markStatus').textContent, /^Suggested 1 body points/);
