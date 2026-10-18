@@ -30,6 +30,8 @@ assert.equal(h.loadHistory().length, 1, 'update does not duplicate review');
 const next = {...first, id: 'next', date: '2026-10-08T00:00:00.000Z'};
 assert.equal(h.previousFor(h.loadHistory(), next).id, first.id);
 assert.equal(h.previousFor(h.loadHistory(), {...next, swimmer: 'Other'}), null);
+assert.equal(h.previousFor([{...first, scoringVersion: 1}], next), null,
+  'do not compare scores from before measured coach checks were introduced');
 assert.equal(h.previousFor(h.loadHistory(), {...next, scores: {a: 8, b: 9}}), null,
   'different checkpoint coverage must not show a progress delta');
 assert.notEqual(h.makeReview({number: 101}, result, '').id, h.makeReview({number: 101}, result, '').id);

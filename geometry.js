@@ -135,6 +135,8 @@ export function evaluateTest(test, pts, others = {}, labels = {}) {
     if (test.kind === 'toWater') return { value: angleToWater(a, b, frame, test.pts.map(name)) };
     if (test.kind === 'joint') return { value: jointAngle(a, b, c, test.pts.map(name)) };
     if (test.kind === 'segmentShift') {
+      vector(a, b, ...test.pts.map(name));
+      vector(ref[test.pts[0]], ref[test.pts[1]], ...test.pts.map(name));
       // How far a segment turned since the earlier checkpoint, each against its own waterline.
       let value = Math.abs(heading(a, b, frame) - heading(ref[test.pts[0]], ref[test.pts[1]], refFrame));
       if (value > 180) value = 360 - value;
@@ -145,9 +147,16 @@ export function evaluateTest(test, pts, others = {}, labels = {}) {
     if (test.kind === 'nearSurface') return { value: Math.max(...test.pts.map(p => Math.abs(heightAbove(pts[p], pts, frame, scale)))) };
     if (test.kind === 'pointGap') return { value: distance(a, b) / scale };
     if (test.kind === 'heightShift') {
-      const refScale = referenceScale(ref);
-      if (!refScale) return { error: 'The earlier checkpoint needs two body points for scale.' };
-      return { value: Math.abs(heightAbove(a, pts, frame, scale) - heightAbove(ref[test.pts[0]], ref, refFrame, refScale)) };
+      // Use the same body segment in both frames, not different fallback segments.
+      const pairs = [['knee', 'ankle', 1], ['hip', 'knee', 1], ['shoulder', 'hip', 1.1], ['hip', 'ankle', 0.5]];
+      for (const [p, q, factor] of pairs) {
+        if (!pts[p] || !pts[q] || !ref[p] || !ref[q]) continue;
+        const currentScale = distance(pts[p], pts[q]) * factor;
+        const refScale = distance(ref[p], ref[q]) * factor;
+        if (currentScale < 15 || refScale < 15) continue;
+        return { value: Math.abs(heightAbove(a, pts, frame, currentScale) - heightAbove(ref[test.pts[0]], ref, refFrame, refScale)) };
+      }
+      return { error: 'Mark the same body segment in both checkpoints to compare heights.' };
     }
     return { error: 'Unknown test.' };
   } catch (err) {

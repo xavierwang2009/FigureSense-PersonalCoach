@@ -33,3 +33,10 @@
 - **Xavier fixed:** In `ballet-assist.js`, rejected downward reflections as flat layouts and favored a vertical thigh with a low foot for Bent Knee. In `app.js`, counted and applied only the body points needed by the selected checkpoint.
 - **Codex reviewed and adjusted:** Preserved yesterday’s saved-progress fixes when merging the older `app.js` copy. Tightened Bent Knee selection to reject feet far above or below hip level and leave the moment unselected when no candidate qualifies. Hip height is only a rough water-level proxy.
 - **Checks completed:** Synthetic-landmark and suggestion-count tests, existing history/report and point-control tests, and JavaScript syntax checks passed. Xavier’s submitted files and Codex’s adjustments are committed separately.
+
+## 2026-10-18 — Comparison drawings, summary and practice plan
+
+- **Xavier built:** Updated `app.js`, `poses.js`, `geometry.js`, `figures.js` and `index.html` with green dashed target lines, deviation gauges, a whole-figure summary and a deduplicated pool/land practice plan. Added point-based estimates for supported coach’s-eye checks, with manual checks when measurements are unavailable.
+- **Codex reviewed and adjusted:** Fixed comparison lines on small thumbnails, added gauges to saved-result rows, clarified summary counts and matched check labels to what the points actually measure. Fixed height comparisons to use the same body segment in both frames and rejected zero-length segments. Kept older scoring versions separate in progress comparisons.
+- **Checks completed:** Four test scripts and JavaScript syntax checks passed. A browser preview with five synthetic frames showed the summary, grouped drills, comparison drawings and result gauges without console errors. This was a code/layout check, not a new swimming-clip accuracy test.
+- **History:** Xavier’s supplied update and Codex’s review adjustments are recorded in separate commits; local backup copies and test media were not uploaded.

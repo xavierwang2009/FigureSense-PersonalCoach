@@ -437,7 +437,7 @@ function paint(c, frame, points, k, opts = {}) {
   const wa = P('waterA'), wb = P('waterB'), hip = P('hip');
   if (wa && wb) {
     let f = null;
-    try { f = waterFrame(wa, wb); } catch { /* too close; just draw the segment */ }
+    try { f = waterFrame(points.waterA, points.waterB); } catch { /* too close; just draw the segment */ }
     if (f) {
       const L = c.canvas.width * 2;
       line({ x: wa.x - f.u.x * L, y: wa.y - f.u.y * L }, { x: wa.x + f.u.x * L, y: wa.y + f.u.y * L }, water, lw * 0.8, [10 * lw / 3, 8 * lw / 3]);
@@ -451,7 +451,7 @@ function paint(c, frame, points, k, opts = {}) {
   // Where each measurement that lost points SHOULD be: green dashed lines.
   if (opts.targets && wa && wb) {
     let f = null;
-    try { f = waterFrame(wa, wb); } catch { /* skip */ }
+    try { f = waterFrame(points.waterA, points.waterB); } catch { /* skip */ }
     const scaled = {};
     for (const n of Object.keys(points)) scaled[n] = P(n);
     for (const metric of f ? opts.targets : []) {
@@ -777,20 +777,16 @@ function summaryHtml(out) {
   const onTarget = rows.filter(row => row.deduction && row.deduction.value === 0).length;
   const checks = saved.flatMap(r => r.checkResults);
   const met = checks.filter(c => c.pass).length;
-  const measured = checks.filter(c => c.measured).length;
+  const measured = checks.filter(c => c.measured && c.pass).length;
   const best = scored.length ? scored.reduce((a, b) => (b.score > a.score ? b : a)) : null;
   const worst = scored.length ? scored.reduce((a, b) => (b.score < a.score ? b : a)) : null;
-  // Which kind of problem cost the most: measured angles or coach's-eye items.
-  const lostAngles = out.issues.filter(i => i.kind === 'measured').reduce((s, i) => s + i.cost, 0);
-  const lostCoach = out.issues.filter(i => i.kind === 'coach').reduce((s, i) => s + i.cost, 0);
-  const focus = !out.issues.length ? 'Nothing lost points. Keep the same shape and timing.'
-    : lostAngles >= lostCoach ? 'Most points were lost on body angles, so focus on the shapes in the drills below.'
-    : "Most points were lost on coach's-eye items, so focus on control and finish.";
+  const focus = !out.issues.length ? 'No deductions in the saved checkpoints.'
+    : `Focus: ${out.issues[0].title} (${out.issues[0].checkpoint.label}).`;
   return `<div class="summary">
-    <div><span class="muted small">Strongest checkpoint</span><b>${best ? `${best.checkpoint.label} · ${best.score.toFixed(1)}` : '—'}</b></div>
-    <div><span class="muted small">Needs the most work</span><b>${worst && worst !== best ? `${worst.checkpoint.label} · ${worst.score.toFixed(1)}` : '—'}</b></div>
+    <div><span class="muted small">Strongest saved checkpoint</span><b>${best ? `${best.checkpoint.label} · ${best.score.toFixed(1)}` : '—'}</b></div>
+    <div><span class="muted small">Lowest saved score</span><b>${worst && worst !== best ? `${worst.checkpoint.label} · ${worst.score.toFixed(1)}` : '—'}</b></div>
     <div><span class="muted small">Measurements on target</span><b class="num">${onTarget} of ${rows.length}</b></div>
-    <div><span class="muted small">Coach's-eye items met</span><b class="num">${met} of ${checks.length}</b><span class="muted small">${measured} measured, ${checks.length - measured} by eye</span></div>
+    <div><span class="muted small">Coach's-eye items met</span><b class="num">${met} of ${checks.length}</b><span class="muted small">${measured} met by measurement, ${met - measured} met by eye</span></div>
     <p class="summary-focus">${focus}</p>
   </div>`;
 }
@@ -830,7 +826,7 @@ function resultHtml(r) {
       <div><h3>${cp.label}</h3><p class="muted small">No saved frame yet${cp.weight ? '' : ' (reference only)'}.</p></div></div>`;
   }
   const rows = r.rows.map(row => `<tr><td>${row.metric.label}</td><td class="num">${row.metric.ideal}°</td>
-      <td class="num">${row.value.toFixed(1)}°</td><td><span class="pill ${row.deduction.band}">${row.deduction.label}${row.deduction.value ? ' −' + row.deduction.value.toFixed(1) : ''}</span></td></tr>`).join('');
+      <td class="num">${row.value.toFixed(1)}°</td><td>${deviationGauge(row.deviation, row.metric.tol)} <span class="pill ${row.deduction.band}">${row.deduction.label}${row.deduction.value ? ' −' + row.deduction.value.toFixed(1) : ''}</span></td></tr>`).join('');
   const checks = r.checkResults.map(c => {
     const target = c.measured ? c.parts.map(p => p.limit).join('<br>') : 'Met';
     const yours = c.measured ? c.parts.map(p => p.display).join('<br>') : (c.pass ? 'Ticked' : 'Not ticked');

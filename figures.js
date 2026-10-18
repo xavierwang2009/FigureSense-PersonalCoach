@@ -36,9 +36,9 @@ export const BALLET_LEG = {
         { id: 'surfaceleg', label: 'Surface leg alignment', kind: 'toWater',    pts: ['hip', 'ankleB'],  ideal: 0, tol: TOL },
       ],
       checks: [
-        { text: 'Face, chest, thighs and feet at the surface', drills: 'height',
+        { text: 'Marked shoulder, hip, knee and ankle near the waterline', drills: 'height',
           tests: [{ kind: 'nearSurface', pts: ['shoulder', 'hip', 'knee', 'ankle'], label: 'Furthest point from the surface', max: 0.35, unit: ' shin' }] },
-        { text: 'Ears, shoulders, hips and ankles in one horizontal line', drills: 'bodyline',
+        { text: 'Shoulder-to-ankle line near horizontal', drills: 'bodyline',
           tests: [{ kind: 'toWater', pts: ['shoulder', 'ankle'], label: 'Shoulder-to-ankle line vs surface', max: 10, unit: '°' }] },
       ],
     },
@@ -52,7 +52,7 @@ export const BALLET_LEG = {
       ],
       checks: [
         { text: 'Toe follows the inside of the extended leg', drills: 'toepath' },
-        { text: 'Head and trunk stay still; surface leg stays extended', drills: 'height',
+        { text: 'Similar shoulder height and trunk angle to the start; surface leg near horizontal', drills: 'height',
           tests: [
             { kind: 'heightShift', pts: ['shoulder'], ref: 'bl1', label: 'Shoulder height change since the start', max: 0.3, unit: ' shin' },
             { kind: 'segmentShift', pts: ['shoulder', 'hip'], ref: 'bl1', label: 'Trunk turned since the start', max: 8, unit: '°' },
@@ -79,7 +79,7 @@ export const BALLET_LEG = {
             { kind: 'toWater', pts: ['shoulder', 'hip'], label: 'Trunk vs surface', max: 10, unit: '°' },
             { kind: 'toWater', pts: ['hip', 'ankleB'], label: 'Surface leg vs surface', max: 10, unit: '°' },
           ] },
-        { text: 'Thigh stayed still while the knee straightened', drills: 'thigh',
+        { text: 'Similar thigh angle to Bent Knee · entry', drills: 'thigh',
           tests: [{ kind: 'segmentShift', pts: ['hip', 'knee'], ref: 'bk1', label: 'Thigh turned since Bent Knee · entry', max: 10, unit: '°' }] },
       ],
     },
@@ -92,9 +92,9 @@ export const BALLET_LEG = {
         { id: 'thigh',      label: 'Thigh away from vertical', kind: 'toVertical', pts: ['hip', 'knee'],    ideal: 0, tol: TOL },
       ],
       checks: [
-        { text: 'Thigh stays still as the knee bends', drills: 'thigh',
+        { text: 'Similar thigh angle to Ballet Leg', drills: 'thigh',
           tests: [{ kind: 'segmentShift', pts: ['hip', 'knee'], ref: 'ballet', label: 'Thigh turned since Ballet Leg', max: 10, unit: '°' }] },
-        { text: 'Height kept; head and trunk stay still', drills: 'height',
+        { text: 'Similar hip height, shoulder height and trunk angle to Ballet Leg', drills: 'height',
           tests: [
             { kind: 'heightShift', pts: ['hip'], ref: 'ballet', label: 'Hip height change since Ballet Leg', max: 0.3, unit: ' shin' },
             { kind: 'heightShift', pts: ['shoulder'], ref: 'ballet', label: 'Shoulder height change since Ballet Leg', max: 0.3, unit: ' shin' },
@@ -110,12 +110,12 @@ export const BALLET_LEG = {
         { id: 'surfaceleg', label: 'Surface leg alignment', kind: 'toWater', pts: ['hip', 'ankleB'],  ideal: 0, tol: TOL },
       ],
       checks: [
-        { text: 'Full extension as the feet join', drills: 'feet',
+        { text: 'Working knee extended and ankles close together', drills: 'feet',
           tests: [
             { kind: 'joint', pts: ['hip', 'knee', 'ankle'], label: 'Knee angle', min: 165, unit: '°' },
             { kind: 'pointGap', pts: ['ankle', 'ankleB'], label: 'Gap between the feet', max: 0.35, unit: ' shin' },
           ] },
-        { text: 'Finished in horizontal alignment', drills: 'bodyline',
+        { text: 'Finished with shoulder-to-ankle line near horizontal', drills: 'bodyline',
           tests: [{ kind: 'toWater', pts: ['shoulder', 'ankle'], label: 'Shoulder-to-ankle line vs surface', max: 10, unit: '°' }] },
         { text: 'Controlled, even motion into the finish', drills: 'control' },
       ],
