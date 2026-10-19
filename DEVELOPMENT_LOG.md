@@ -45,3 +45,8 @@
 - **Xavier built:** Added Barracuda and Kip alongside Ballet Leg, a remembered figure picker with confirmation before clearing work, four-checkpoint sequences, new drawings and drills, measured checks, a Figure column in progress, and a “90° or tighter” tuck target. Added `figure-assist.js` for the new moment finders; `ballet-assist.js` is unchanged.
 - **Codex reviewed and adjusted:** Prevented late scan, capture and pose results from entering a changed review; ensured scan controls recover after errors; handled missing pose sides; clarified that ankle position does not establish toe depth.
 - **Checks completed:** Five test scripts and syntax checks passed, covering synthetic sequences, tighter-angle targets, figure-switch confirmation, remembered selection and stale-result rejection. Browser startup showed all three choices without console errors. Real Barracuda and Kip clip accuracy has not been verified.
+
+## 2026-10-19 — UI design in progress
+
+- **Progress:** The main app functionality is in place. The latest code tests and browser startup check passed.
+- **Current work:** Refining the app’s UI design to make video review, measurements and practice feedback easier to use and understand.
