@@ -64,6 +64,11 @@ export function deductionFor(deviation, tol) {
   return { value: 1.0, band: 'large', label: 'Large deviation' };
 }
 
+// The target as text: "90°", or "≤ 90°" for an atMost metric.
+export function targetText(metric) {
+  return (metric.atMost ? '≤ ' : '') + metric.ideal + '°';
+}
+
 // Measure one requirement. Returns { value, deviation, deduction } or { error }.
 export function evaluateMetric(metric, points, labels = {}) {
   const missing = metric.pts.filter(p => !points[p]);
@@ -79,7 +84,8 @@ export function evaluateMetric(metric, points, labels = {}) {
     if (metric.kind === 'toWater') value = angleToWater(a, b, frame, names);
     else if (metric.kind === 'toVertical') value = angleToVertical(a, b, frame, names);
     else value = jointAngle(a, b, c, names);
-    const deviation = Math.abs(value - metric.ideal);
+    // "atMost" metrics (like a knee bend of 90° or tighter) only lose points past the limit.
+    const deviation = metric.atMost ? Math.max(0, value - metric.ideal) : Math.abs(value - metric.ideal);
     return { value, deviation, deduction: deductionFor(deviation, metric.tol) };
   } catch (err) {
     return { error: err.message };
@@ -133,6 +139,7 @@ export function evaluateTest(test, pts, others = {}, labels = {}) {
   try {
     const [a, b, c] = test.pts.map(p => pts[p]);
     if (test.kind === 'toWater') return { value: angleToWater(a, b, frame, test.pts.map(name)) };
+    if (test.kind === 'toVertical') return { value: angleToVertical(a, b, frame, test.pts.map(name)) };
     if (test.kind === 'joint') return { value: jointAngle(a, b, c, test.pts.map(name)) };
     if (test.kind === 'segmentShift') {
       vector(a, b, ...test.pts.map(name));
@@ -146,6 +153,8 @@ export function evaluateTest(test, pts, others = {}, labels = {}) {
     if (!scale) return { error: 'Mark two body points (like knee and ankle) so heights can be measured.' };
     if (test.kind === 'nearSurface') return { value: Math.max(...test.pts.map(p => Math.abs(heightAbove(pts[p], pts, frame, scale)))) };
     if (test.kind === 'pointGap') return { value: distance(a, b) / scale };
+    // Height of one point above the surface (negative = under the water).
+    if (test.kind === 'heightOf') return { value: heightAbove(a, pts, frame, scale) };
     if (test.kind === 'heightShift') {
       // Use the same body segment in both frames, not different fallback segments.
       const pairs = [['knee', 'ankle', 1], ['hip', 'knee', 1], ['shoulder', 'hip', 1.1], ['hip', 'ankle', 0.5]];
@@ -232,7 +241,7 @@ export function rankIssues(figure, results) {
       if (row.deduction && row.deduction.value > 0) {
         issues.push({
           checkpoint: r.checkpoint, kind: 'measured', title: row.metric.label,
-          detail: `${row.value.toFixed(1)}° measured, target ${row.metric.ideal}° (${row.deduction.label.toLowerCase()}, −${row.deduction.value.toFixed(1)})`,
+          detail: `${row.value.toFixed(1)}° measured, target ${targetText(row.metric)} (${row.deduction.label.toLowerCase()}, −${row.deduction.value.toFixed(1)})`,
           drillKey: row.metric.id, cost: row.deduction.value * share * figure.dd,
         });
       }

@@ -8,11 +8,12 @@ the browser; videos are never uploaded.
 | File | Job |
 |---|---|
 | `index.html` | The page and its styling |
-| `figures.js` | Ballet Leg data: checkpoints, requirements, coach's-eye items, drills |
+| `figures.js` | Figure data (Ballet Leg, Barracuda, Kip): checkpoints, requirements, coach's-eye items, drills |
 | `geometry.js` | Angles against the waterline, deductions, checkpoint and figure scores |
 | `poses.js` | Small still drawings of each position |
 | `autoscan.js` | MediaPipe pose detection and scanning the video |
 | `ballet-assist.js` | Picks the five moments and turns a pose into suggested points |
+| `figure-assist.js` | Finds the checkpoint moments automatically for Barracuda and Kip (Ballet Leg uses `ballet-assist.js`) |
 | `app.js` | Connects the page: video, capture, marking, saving, results |
 
 ## Put it online (GitHub Pages, free)

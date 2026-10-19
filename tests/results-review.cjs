@@ -10,8 +10,8 @@ function moduleBox(name, exports) {
   vm.runInContext(read(name).replace(/export /g, '') + `\nglobalThis.api={${exports}};`, box);
   return box.api;
 }
-const g = moduleBox('geometry.js', 'evaluateTest,evaluateCheck,scoreFigure,waterFrame');
-const f = moduleBox('figures.js', 'BALLET_LEG,DRILLS,videoLink');
+const g = moduleBox('geometry.js', 'evaluateTest,evaluateCheck,scoreFigure,waterFrame,targetText');
+const f = moduleBox('figures.js', 'BALLET_LEG,DRILLS,videoLink,linkText');
 const drawings = moduleBox('poses.js', 'targetLine,deviationGauge');
 const point = (x,y) => ({x,y});
 const pts = {waterA:point(0,100),waterB:point(100,100),shoulder:point(0,90),hip:point(100,90),knee:point(100,40),ankle:point(100,-10),ankleB:point(200,90)};
@@ -35,7 +35,7 @@ vm.createContext(harness);
 vm.runInContext(setup+'\nglobalThis.app=sandbox;',harness);
 const app = harness.app;
 Object.assign(app,{waterFrame:g.waterFrame,targetLine:drawings.targetLine,deviationGauge:drawings.deviationGauge,
-  DRILLS:f.DRILLS,videoLink:f.videoLink,getComputedStyle:()=>({getPropertyValue:()=>''})});
+  DRILLS:f.DRILLS,videoLink:f.videoLink,linkText:f.linkText,targetText:g.targetText,getComputedStyle:()=>({getPropertyValue:()=>''})});
 vm.runInContext('FIG.drillsFor = {}; globalThis.review={paint,summaryHtml,planHtml,resultHtml};', app);
 app.FIG.drillsFor = f.BALLET_LEG.drillsFor;
 const issue = {title:'Knee extension',checkpoint:{label:'Ballet Leg'},drillKey:'knee',kind:'measured',cost:1};

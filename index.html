@@ -144,6 +144,7 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .drill .where { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 /* Keeping results */
 .keep { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
+select { font: 400 1rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 44px; max-width: 100%; }
 input[type=text] { font: 400 1rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 42px; width: min(100%, 18rem); }
 .report { display: grid; gap: 10px; }
 .report img { width: min(100%, 540px); border: 1px solid var(--line); border-radius: 8px; }
@@ -182,13 +183,19 @@ ul.plain { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; max-width: 
 <div class="page">
   <header class="top">
     <h1>FigureSense</h1>
-    <p>Check a <b>Ballet Leg (figure 101)</b> from a practice video. Mark the body on five key frames, and FigureSense measures the angles, estimates a score and suggests drills.</p>
+    <p>Check a <b>Ballet Leg</b>, <b>Barracuda</b> or <b>Kip</b> from a practice video. Mark the body on a few key frames, and FigureSense measures the angles, estimates a score and suggests drills.</p>
     <p class="muted small">Your video stays on your device. Nothing is uploaded. Scores are practice estimates, not official judging.</p>
   </header>
 
   <!-- 1. The figure -->
   <section id="figure" aria-labelledby="h-figure">
     <h2 id="h-figure"><span class="n">1</span> The figure</h2>
+    <div class="row">
+      <label for="figPick"><b>Figure</b></label>
+      <select id="figPick"></select>
+      <button type="button" id="figSwitch" hidden></button>
+      <span class="muted small" id="figNote"></span>
+    </div>
     <p id="figSummary"></p>
     <p class="muted small" id="figFacts"></p>
     <div class="cps" id="cpCards"></div>
@@ -213,7 +220,7 @@ ul.plain { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; max-width: 
     </div>
     <div id="autoBox" hidden>
       <div class="row">
-        <button id="findMoments" type="button">Find the five moments for me</button>
+        <button id="findMoments" type="button">Find the moments for me</button>
         <span class="muted small">Optional. Uses MediaPipe pose detection, downloaded the first time.</span>
       </div>
       <progress id="scanProgress" max="1" value="0" hidden></progress>

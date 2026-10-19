@@ -20,11 +20,12 @@ function element(id) {
 const source = fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8')
   .replace(/^import .*;$/gm, '')
   .replace(/\/\/ ---------------------------------------------------------------- go[\s\S]*$/, '');
+const testFigure = {number: '101', short: 'Test', checkpoints: [{id: 'first', checks: []}]};
 const sandbox = {
   document: {getElementById: element, createElement: () => element('created')},
   window: {innerHeight: 800, addEventListener() {}},
   LANDMARKS: {hip: {label: 'Hip'}},
-  FIG: {checkpoints: [{id: 'first', checks: []}]},
+  FIG: testFigure, FIGURES: [testFigure],   // Stage 2: app.js takes FIG from FIGURES
   console, setTimeout,
 };
 vm.createContext(sandbox);

@@ -2,11 +2,12 @@
 // Connects the page to the other modules: video, capture, marking points,
 // saving checkpoints, results and drills. Saved progress stays in this browser; videos and frames stay in this tab.
 
-import { LANDMARKS, BALLET_LEG as FIG, DRILLS, pointsNeeded, pointsUsed, videoLink } from './figures.js';
-import { scoreCheckpoint, scoreFigure, waterFrame } from './geometry.js';
+import { LANDMARKS, FIGURES, DRILLS, pointsNeeded, pointsUsed, videoLink, linkText, hintFor } from './figures.js';
+import { scoreCheckpoint, scoreFigure, waterFrame, targetText } from './geometry.js';
 import { poseArt, deviationGauge, targetLine } from './poses.js';
 import { detectPose, scanVideo, seekTo } from './autoscan.js';
-import { pickBalletSequence, pointsFromPose } from './ballet-assist.js';
+import { pointsFromPose } from './ballet-assist.js';
+import { pickSequence } from './figure-assist.js';
 import { loadHistory, makeReview, saveReview, deleteReview, clearHistory, previousFor } from './history.js';
 import { drawReport } from './report.js';
 
@@ -15,7 +16,21 @@ const FRAME = 1 / 30;            // one frame at 30 fps
 const MAX_BYTES = 200 * 1024 * 1024;
 const GRAB_PX = 16;              // how close (on screen) a click must be to grab a point
 const LABELS = Object.fromEntries(Object.entries(LANDMARKS).map(([k, v]) => [k, v.label]));
-for (const cp of FIG.checkpoints) LABELS['cp:' + cp.id] = cp.label;   // used in "save X first" messages
+
+// The figure being reviewed. Changing it starts a new review (see the figure picker).
+let FIG = FIGURES[0];
+try {
+  const remembered = FIGURES.find(f => f.number === localStorage.getItem('figuresense-figure'));
+  if (remembered) FIG = remembered;
+} catch { /* storage blocked: start with Ballet Leg */ }
+
+// Checkpoint names, used in "save X first" messages.
+function setCheckpointLabels() {
+  for (const k of Object.keys(LABELS)) if (k.startsWith('cp:')) delete LABELS[k];
+  for (const cp of FIG.checkpoints) LABELS['cp:' + cp.id] = cp.label;
+}
+setCheckpointLabels();
+const scoredCount = () => FIG.checkpoints.filter(cp => cp.weight > 0).length;
 
 // ---------------------------------------------------------------- state
 const state = {
@@ -41,9 +56,39 @@ function setStatus(el, text, kind = '') {
 }
 
 // ---------------------------------------------------------------- 1. figure
+// Is there work in this review that switching figure would clear?
+const hasWork = () => Object.keys(state.saved).length > 0 || Object.values(state.drafts).some(d => d && d.frame);
+
+function switchFigure(number) {
+  FIG = FIGURES.find(f => f.number === number) || FIGURES[0];
+  try { localStorage.setItem('figuresense-figure', FIG.number); } catch { /* fine without it */ }
+  setCheckpointLabels();
+  $('figSwitch').hidden = true;
+  resetReview();
+  renderFigure();
+}
+
+$('figPick').addEventListener('change', e => {
+  const chosen = FIGURES.find(f => f.number === e.target.value);
+  if (!hasWork()) { switchFigure(chosen.number); $('figNote').textContent = ''; return; }
+  // Saved checkpoints belong to one figure, so ask before clearing them.
+  e.target.value = FIG.number;
+  $('figSwitch').hidden = false;
+  $('figSwitch').dataset.fig = chosen.number;
+  $('figSwitch').textContent = `Switch to ${chosen.short}`;
+  $('figNote').textContent = 'Switching clears this review (saved progress is kept).';
+});
+$('figSwitch').addEventListener('click', e => {
+  switchFigure(e.target.dataset.fig);
+  $('figNote').textContent = `Now reviewing ${FIG.short}.`;
+});
+
 function renderFigure() {
+  $('figPick').innerHTML = FIGURES.map(f => `<option value="${f.number}">${f.number} ${f.name} (DD ${f.dd})</option>`).join('');
+  $('figPick').value = FIG.number;
   $('figSummary').textContent = FIG.summary;
-  $('figFacts').textContent = `Figure ${FIG.number} · degree of difficulty ${FIG.dd} · five checkpoints, four of them scored`;
+  $('figFacts').textContent = `Figure ${FIG.number} · degree of difficulty ${FIG.dd} · ${FIG.checkpoints.length} checkpoints, ${scoredCount()} of them scored`;
+  $('findMoments').textContent = `Find the ${FIG.checkpoints.length} moments for me`;
   $('cpCards').innerHTML = FIG.checkpoints.map(cp => `
     <div class="cp-card">
       ${poseArt(cp.pose)}
@@ -108,13 +153,14 @@ $('findMoments').addEventListener('click', async () => {
     const samples = await scanVideo(player, {
       onProgress: f => { $('scanProgress').value = f; setStatus($('scanStatus'), `Looking through the video… ${Math.round(f * 100)}%`); },
     });
-    const { side, times } = pickBalletSequence(samples);
+    const { side, times } = pickSequence(FIG, samples);
     state.side = side;
     state.picks = times;
     const found = Object.values(times).filter(t => t !== null).length;
+    const sideNote = FIG.finder === 'ballet' ? ` (working leg: swimmer's ${side})` : '';
     setStatus($('scanStatus'), found
-      ? `Found ${found} of 5 moments (working leg: swimmer's ${side}). Check each one before saving.`
-      : 'No clear Ballet Leg found. Move to each moment yourself and capture it.', found ? 'ok' : 'warn');
+      ? `Found ${found} of ${FIG.checkpoints.length} moments${sideNote}. Check each one before saving.`
+      : `No clear ${FIG.short} found. Move to each moment yourself and capture it.`, found ? 'ok' : 'warn');
   } catch (err) {
     setStatus($('scanStatus'), "Pose detection couldn't load, so moments can't be found automatically. It needs an internet connection, and some hosts block it. You can still capture each frame yourself.", 'error');
     console.error(err);
@@ -325,8 +371,8 @@ function renderMarking(clearStatus = true) {
   // point chips
   const needed = pointsNeeded(cp);
   $('chips').innerHTML = pointsUsed(cp).map(n => `<button type="button" class="chip${d && d.points[n] ? ' placed' : ''}${needed.includes(n) ? '' : ' optional'}"
-      data-pt="${n}" aria-pressed="${state.selected === n}" title="${LANDMARKS[n].hint}${needed.includes(n) ? '' : ' (optional: lets a coach\'s-eye item be measured)'}">${LANDMARKS[n].label}${needed.includes(n) ? '' : ' <small>optional</small>'}</button>`).join('');
-  $('pointHint').textContent = state.selected ? `Next: ${LANDMARKS[state.selected].hint}.` : (d && d.frame ? 'All points placed. Drag any that are off.' : 'Capture a frame first.');
+      data-pt="${n}" aria-pressed="${state.selected === n}" title="${hintFor(FIG, n)}${needed.includes(n) ? '' : ' (optional: lets a coach\'s-eye item be measured)'}">${LANDMARKS[n].label}${needed.includes(n) ? '' : ' <small>optional</small>'}</button>`).join('');
+  $('pointHint').textContent = state.selected ? `Next: ${hintFor(FIG, state.selected)}.` : (d && d.frame ? 'All points placed. Drag any that are off.' : 'Capture a frame first.');
 
   // coach's-eye checks
   $('checks').innerHTML = '<legend>Coach\'s eye</legend>' + cp.checks.map((c, i) => `
@@ -359,7 +405,7 @@ function renderLive() {
   const result = scoreCheckpoint(cp, d ? d.points : {}, d ? d.checks : [], LABELS, state.saved);
   $('liveRows').innerHTML = result.rows.map(r => `<tr>
       <td>${r.metric.label}</td>
-      <td class="num">${r.metric.ideal}°</td>
+      <td class="num">${targetText(r.metric)}</td>
       <td class="num">${r.error ? '–' : r.value.toFixed(1) + '°'}</td>
       <td>${r.error ? `<span class="pill none">${r.error}</span>` : `${deviationGauge(r.deviation, r.metric.tol)} <span class="pill ${r.deduction.band}">${r.deduction.label}${r.deduction.value ? ' −' + r.deduction.value.toFixed(1) : ''}</span>`}</td>
     </tr>`).join('');
@@ -613,7 +659,7 @@ function renderResults() {
     <div class="score">
       <span class="big">${out.figureScore.toFixed(2)}</span>
       <span>figure score (out of ${(10 * FIG.dd).toFixed(0)})<br><span class="muted small">practice score ${out.practice.toFixed(2)} / 10 × difficulty ${FIG.dd}</span></span>
-      ${out.provisional ? `<span class="pill small">Provisional · ${savedCount} of 5 checkpoints saved</span>` : '<span class="pill clean">All 5 checkpoints saved</span>'}
+      ${out.provisional ? `<span class="pill small">Provisional · ${savedCount} of ${FIG.checkpoints.length} checkpoints saved</span>` : `<span class="pill clean">All ${FIG.checkpoints.length} checkpoints saved</span>`}
     </div>
     ${summaryHtml(out)}
     <div>
@@ -691,7 +737,7 @@ $('makeReport').addEventListener('click', () => {
   const url = image.toDataURL('image/png');
   const img = document.createElement('img');
   img.src = url;
-  img.alt = 'Report with the figure score, the five checkpoints and what to work on';
+  img.alt = `Report with the ${FIG.short} score, the checkpoints and what to work on`;
   $('reportImgBox').replaceChildren(img);
   $('reportDownload').href = url;
   // Inside the Claude page viewer, downloads are blocked, so only the save-the-image tip shows there.
@@ -699,6 +745,12 @@ $('makeReport').addEventListener('click', () => {
   $('reportBox').hidden = false;
   setStatus($('keepStatus'), 'Report image ready.', 'ok');
 });
+
+// Saved reviews keep the figure number; show its short name when we know it.
+const figureName = number => {
+  const f = FIGURES.find(x => x.number === number);
+  return f ? f.short : 'Figure ' + number;
+};
 
 function renderProgress() {
   const list = loadHistory().slice().sort((a, b) => (a.date < b.date ? 1 : -1));   // newest first
@@ -719,6 +771,7 @@ function renderProgress() {
     return `<tr>
       <td>${when}</td>
       <td>${r.swimmer ? esc(r.swimmer) : '<span class="muted">—</span>'}</td>
+      <td>${esc(figureName(r.figure))}</td>
       <td class="num">${r.figureScore.toFixed(2)}${r.provisional ? ' <span class="pill small">provisional</span>' : ''}</td>
       <td class="num">${change}</td>
       <td>${r.top.length ? esc(r.top[0]) : '<span class="muted">nothing lost points</span>'}</td>
@@ -726,7 +779,7 @@ function renderProgress() {
     </tr>`;
   }).join('');
   $('progressBody').innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>Date</th><th>Swimmer</th><th class="num">Score</th><th class="num">Change</th><th>Top thing to work on</th><th></th></tr></thead>
+    <thead><tr><th>Date</th><th>Swimmer</th><th>Figure</th><th class="num">Score</th><th class="num">Change</th><th>Top thing to work on</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 
@@ -806,7 +859,7 @@ function planHtml(out) {
     const d = DRILLS[id];
     return `<div class="drill"><span class="where">${d.dose}</span><b>${d.name}</b><span>${d.how}</span>
       <span class="small muted">Helps with: ${picked.get(id).join('; ')}</span>
-      <a href="${videoLink(d)}" target="_blank" rel="noopener">Watch the demo (${d.video.channel})</a></div>`;
+      <a href="${videoLink(d)}" target="_blank" rel="noopener">${linkText(d)}</a></div>`;
   };
   const ids = [...picked.keys()];
   const pool = ids.filter(id => DRILLS[id].where === 'Pool');
@@ -825,7 +878,7 @@ function resultHtml(r) {
     return `<div class="result-cp"><div class="muted small">Not saved</div>
       <div><h3>${cp.label}</h3><p class="muted small">No saved frame yet${cp.weight ? '' : ' (reference only)'}.</p></div></div>`;
   }
-  const rows = r.rows.map(row => `<tr><td>${row.metric.label}</td><td class="num">${row.metric.ideal}°</td>
+  const rows = r.rows.map(row => `<tr><td>${row.metric.label}</td><td class="num">${targetText(row.metric)}</td>
       <td class="num">${row.value.toFixed(1)}°</td><td>${deviationGauge(row.deviation, row.metric.tol)} <span class="pill ${row.deduction.band}">${row.deduction.label}${row.deduction.value ? ' −' + row.deduction.value.toFixed(1) : ''}</span></td></tr>`).join('');
   const checks = r.checkResults.map(c => {
     const target = c.measured ? c.parts.map(p => p.limit).join('<br>') : 'Met';
