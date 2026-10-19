@@ -33,6 +33,7 @@ setCheckpointLabels();
 const scoredCount = () => FIG.checkpoints.filter(cp => cp.weight > 0).length;
 
 // ---------------------------------------------------------------- state
+let reviewVersion = 0;   // changes whenever the current review is cleared
 const state = {
   current: FIG.checkpoints[0].id,
   drafts: {},     // the checkpoint you are working on: { time, frame, points, checks, note }
@@ -149,11 +150,15 @@ $('findMoments').addEventListener('click', async () => {
   $('scanProgress').value = 0;
   setStatus($('scanStatus'), 'Loading pose detection…');
   const resumeAt = player.currentTime;
+  const version = reviewVersion;
+  const figure = FIG;
+  const source = player.src;
   try {
     const samples = await scanVideo(player, {
-      onProgress: f => { $('scanProgress').value = f; setStatus($('scanStatus'), `Looking through the video… ${Math.round(f * 100)}%`); },
+      onProgress: f => { if (version !== reviewVersion) return; $('scanProgress').value = f; setStatus($('scanStatus'), `Looking through the video… ${Math.round(f * 100)}%`); },
     });
-    const { side, times } = pickSequence(FIG, samples);
+    if (version !== reviewVersion) return;
+    const { side, times } = pickSequence(figure, samples);
     state.side = side;
     state.picks = times;
     const found = Object.values(times).filter(t => t !== null).length;
@@ -162,14 +167,18 @@ $('findMoments').addEventListener('click', async () => {
       ? `Found ${found} of ${FIG.checkpoints.length} moments${sideNote}. Check each one before saving.`
       : `No clear ${FIG.short} found. Move to each moment yourself and capture it.`, found ? 'ok' : 'warn');
   } catch (err) {
+    if (version !== reviewVersion) return;
     setStatus($('scanStatus'), "Pose detection couldn't load, so moments can't be found automatically. It needs an internet connection, and some hosts block it. You can still capture each frame yourself.", 'error');
     console.error(err);
+  } finally {
+    try {
+      if (source === player.src) await seekTo(player, resumeAt);
+    } catch (err) { console.error(err); }
+    $('scanProgress').hidden = true;
+    $('findMoments').disabled = false;
+    scanning = false;
+    renderPicks();
   }
-  await seekTo(player, resumeAt);
-  $('scanProgress').hidden = true;
-  $('findMoments').disabled = false;
-  scanning = false;
-  renderPicks();
 });
 
 function renderPicks() {
@@ -184,8 +193,10 @@ function renderPicks() {
 $('picks').addEventListener('click', async e => {
   const id = e.target.dataset && e.target.dataset.go;
   if (!id) return;
+  const version = reviewVersion;
   selectCheckpoint(id);
   await seekTo(player, state.picks[id]);
+  if (version !== reviewVersion || state.current !== id) return;
   await captureFrame();
   if (state.picks) await suggestPoints(true);
   $('mark').scrollIntoView({ block: 'start' });
@@ -325,10 +336,13 @@ function copyDraft(s) {
 async function suggestPoints(quiet = false) {
   const d = draft();
   if (!d || !d.frame) return;
+  const version = reviewVersion, checkpoint = state.current, frame = d.frame;
+  const current = () => version === reviewVersion && state.current === checkpoint && draft() === d && d.frame === frame;
   $('suggest').disabled = true;
   setStatus($('markStatus'), 'Finding the body…');
   try {
-    const pose = await detectPose(d.frame);
+    const pose = await detectPose(frame);
+    if (!current()) return;
     if (!pose) { setStatus($('markStatus'), 'No swimmer found in this frame. Place the points yourself.', 'warn'); return; }
     const { side, points } = pointsFromPose(pose, state.side);
     state.side = side;
@@ -339,7 +353,7 @@ async function suggestPoints(quiet = false) {
     setStatus($('markStatus'), `Suggested ${placed} body points. Check each one and drag it if needed` +
       (d.points.waterA ? '.' : ', then mark the water line.'), placed ? 'ok' : 'warn');
   } catch (err) {
-    if (!quiet) setStatus($('markStatus'), "Pose detection couldn't load here. It needs an internet connection, and some hosts block it. Place the points yourself.", 'error');
+    if (!quiet && current()) setStatus($('markStatus'), "Pose detection couldn't load here. It needs an internet connection, and some hosts block it. Place the points yourself.", 'error');
     console.error(err);
   } finally {
     $('suggest').disabled = false;
@@ -913,6 +927,8 @@ $('startOver').addEventListener('click', () => {
 });
 
 function resetReview() {
+  reviewVersion++;
+  setStatus($('scanStatus'), '');
   state.drafts = {}; state.saved = {}; state.picks = null; state.side = null; state.selected = null; state.zoom = 1;
   state.current = FIG.checkpoints[0].id;
   historyId = null;   // a new review (saved progress from before is kept)

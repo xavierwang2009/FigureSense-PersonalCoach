@@ -39,3 +39,9 @@
 - **Xavier built:** Updated `app.js`, `poses.js`, `geometry.js`, `figures.js` and `index.html` with green dashed target lines, deviation gauges, a whole-figure summary and a deduplicated pool/land practice plan. Added point-based estimates for supported coach’s-eye checks, with manual checks when measurements are unavailable.
 - **Codex reviewed and adjusted:** Fixed comparison lines on small thumbnails, added gauges to saved-result rows, clarified summary counts and matched check labels to what the points actually measure. Fixed height comparisons to use the same body segment in both frames and rejected zero-length segments. Kept older scoring versions separate in progress comparisons.
 - **Checks completed:** Four test scripts and JavaScript syntax checks passed. A browser preview with five synthetic frames showed the summary, grouped drills, comparison drawings and result gauges without console errors. This was a code/layout check, not a new swimming-clip accuracy test.
+
+## 2026-10-18 — Add Barracuda and Kip
+
+- **Xavier built:** Added Barracuda and Kip alongside Ballet Leg, a remembered figure picker with confirmation before clearing work, four-checkpoint sequences, new drawings and drills, measured checks, a Figure column in progress, and a “90° or tighter” tuck target. Added `figure-assist.js` for the new moment finders; `ballet-assist.js` is unchanged.
+- **Codex reviewed and adjusted:** Prevented late scan, capture and pose results from entering a changed review; ensured scan controls recover after errors; handled missing pose sides; clarified that ankle position does not establish toe depth.
+- **Checks completed:** Five test scripts and syntax checks passed, covering synthetic sequences, tighter-angle targets, figure-switch confirmation, remembered selection and stale-result rejection. Browser startup showed all three choices without console errors. Real Barracuda and Kip clip accuracy has not been verified.

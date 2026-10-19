@@ -207,7 +207,7 @@ export const BARRACUDA = {
       checks: [
         { text: 'Shoulder–hip–ankle angle 45° or less (tight pike)', drills: 'pikeangle',
           tests: [{ kind: 'joint', pts: ['shoulder', 'hip', 'ankle'], label: 'Hip angle', max: 45, unit: '°' }] },
-        { text: 'Ankle near the waterline (toes just under)', drills: 'pikeangle',
+        { text: 'Ankle near the waterline (check toe depth by eye)', drills: 'pikeangle',
           tests: [{ kind: 'nearSurface', pts: ['ankle'], label: 'Ankle distance from the surface', max: 0.5, unit: ' shin' }] },
         { text: 'Ankles close together', drills: 'together',
           tests: [{ kind: 'pointGap', pts: ['ankle', 'ankleB'], label: 'Gap between the feet', max: 0.35, unit: ' shin' }] },

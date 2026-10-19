@@ -31,6 +31,7 @@ function joint(a, b, c) {
 
 // Measures of one leg in one frame, or null if the leg isn't clear.
 export function shapeOf(leg) {
+  if (!leg) return null;
   const { hip, knee, ankle } = leg;
   if (![hip, knee, ankle].every(p => p && p.vis >= SEEN)) return null;
   const length = dist(hip, knee) + dist(knee, ankle);
@@ -53,7 +54,7 @@ export function clearestSide(samples) {
   for (const s of samples) {
     if (!s.pose) continue;
     for (const side of ['left', 'right']) {
-      for (const k of ['hip', 'knee', 'ankle']) total[side] += (s.pose[side][k] && s.pose[side][k].vis) || 0;
+      for (const k of ['hip', 'knee', 'ankle']) total[side] += (s.pose[side]?.[k]?.vis) || 0;
     }
   }
   if (!total.left && !total.right) return null;
