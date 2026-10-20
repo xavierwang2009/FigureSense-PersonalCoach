@@ -1,7 +1,8 @@
 # FigureSense 
 
-A plain, one-page Ballet Leg (figure 101) checker. Load a practice video, mark five
-checkpoints, and get measured angles, a practice score and drills. Everything runs in
+A browser-based practice review app for Ballet Leg, Barracuda and Kip. Choose a
+figure, load a practice video, review its checkpoints, and get measured angles,
+a practice score and drills. Everything runs in
 the browser; videos are never uploaded.
 
 ## Files

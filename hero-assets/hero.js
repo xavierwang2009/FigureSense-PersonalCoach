@@ -162,7 +162,7 @@
     const [title, body] = SCENES[i];
     const text = caption.querySelector(':scope > span');
     text.querySelector('b').textContent = title;
-    text.querySelector('span').textContent = body;
+    text.querySelector('span').textContent = 'Recorded demo · reviewed body points. ' + body;
     caption.classList.remove('is-changing');
     void caption.offsetWidth;
     caption.classList.add('is-changing');
@@ -478,7 +478,7 @@
   function syncMotion() {
     hero.classList.toggle('motion-paused', userPaused);
     motion.setAttribute('aria-pressed', String(userPaused));
-    motion.setAttribute('aria-label', userPaused ? 'Play the live analysis' : 'Pause the live analysis');
+    motion.setAttribute('aria-label', userPaused ? 'Play the recorded demo' : 'Pause the recorded demo');
     motion.title = userPaused ? 'Play' : 'Pause';
   }
   motion.addEventListener('click', () => {

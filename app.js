@@ -129,6 +129,7 @@ function loadClip(src) {
 // Xavier's Ballet Leg clip, so a swimmer can try the app without a video of their own.
 // (Xavier and the project owner approved publishing it; the permission box is for other swimmers' videos.)
 $('demoClip').addEventListener('click', () => {
+  if (hasWork() && !window.confirm('Load the demo and clear this review? Saved progress is kept.')) return;
   if (FIG.number !== '101') { switchFigure('101'); $('figNote').textContent = 'Switched to Ballet Leg for the demo.'; }
   const meta = document.querySelector('meta[name="fs-demo-clip"]');
   loadClip(meta ? meta.content : 'demo-assets/xavier-ballet-leg-demo.mp4');
@@ -934,13 +935,14 @@ $('startOver').addEventListener('click', () => {
     armed = true;
     $('startOver').textContent = 'Click again to clear everything';
     $('startOverNote').textContent = 'This clears the current review. Saved progress is kept.';
-    setTimeout(() => { armed = false; $('startOver').textContent = 'Start over'; $('startOverNote').textContent = ''; }, 5000);
+    setTimeout(() => { armed = false; $('startOver').textContent = 'New review'; $('startOverNote').textContent = ''; }, 5000);
     return;
   }
   armed = false;
   resetReview();
-  $('startOver').textContent = 'Start over';
+  $('startOver').textContent = 'New review';
   $('startOverNote').textContent = 'Cleared.';
+  document.dispatchEvent(new CustomEvent('fs-goto', { detail: 'setup' }));
 });
 
 function resetReview() {

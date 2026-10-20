@@ -50,3 +50,9 @@
 
 - **Progress:** The main app functionality is in place. The latest code tests and browser startup check passed.
 - **Current work:** Refining the app’s UI design to make video review, measurements and practice feedback easier to use and understand.
+
+## 2026-10-20 — UI redesign and review
+
+- **My update:** I used AI design assistance to redesign the interface with a new home page, step-by-step screens, light/dark themes, position illustrations and a demo clip.
+- **Codex review:** I asked Codex to review the update. Codex added confirmation before the demo clears a review, made “New review” return to figure selection, clarified the progress-page button and labeled the home animation as a recorded demo with reviewed points. Codex also updated the README description and added regression tests.
+- **Checks:** All six current test suites and JavaScript syntax checks passed. Codex checked desktop and phone-width navigation and frame capture in the browser. This UI review did not re-evaluate pose-detection accuracy.
