@@ -9,7 +9,7 @@
 ## 2026-10-14 — Share the starting version and identify improvements
 
 - **Added to GitHub:** Codex imported the supplied local files unchanged into the private `figuresense-simple` repository, to keep a baseline before sharing the app with swimmers and collecting feedback.
-- **Problem reported:** On a phone, the hip, knee, and ankle points were small and difficult to place precisely with a finger.
+- **Problem reported:** On a small screen, the hip, knee, and ankle points were small and difficult to place precisely with a finger.
 - **Needed improvement:** Zoom and easier point adjustment. I began working on the phone controls.
 
 ## 2026-10-16 — Zoom update and Codex review
