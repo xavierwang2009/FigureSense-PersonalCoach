@@ -117,3 +117,28 @@ export function targetLine(metric, pts, frame) {
   const closer = (p1.x * bc.x + p1.y * bc.y) >= (p2.x * bc.x + p2.y * bc.y) ? p1 : p2;
   return { from: b, to: { x: b.x + closer.x * lenC, y: b.y + closer.y * lenC } };
 }
+
+// ---------------------------------------------------------------- illustrations
+// The prototype's swimmer illustrations (art/poses-sprite.jpg is a 2 × 2 sheet:
+// back layout, bent knee · bent knee vertical, vertical; Ballet Leg has its own picture).
+// Each card holds an illustration and the diagram above; the Illustration / Diagram
+// switch (body.technical-view, see nav.js) chooses which one shows.
+const ILLUSTRATION = {
+  layout:   { pos: '0% 0%',     ratio: '627 / 537', label: 'Back layout' },
+  bentknee: { pos: '100% 0%',   ratio: '627 / 537', label: 'Bent knee back layout' },
+  vertical: { pos: '100% 100%', ratio: '627 / 717', label: 'Vertical position' },
+  descent:  { pos: '100% 100%', ratio: '627 / 717', label: 'Vertical position' },
+  ballet:   { img: 'hero-assets/ballet-leg-human.png', ratio: '3 / 2', label: 'Ballet Leg' },
+};
+
+export function poseCard(name) {
+  const art = ILLUSTRATION[name];
+  if (!art) return `<span class="pose-switch pose-seq pose-diagram-only">${poseArt(name)}</span>`;
+  const style = art.img
+    ? `background-image:url('${art.img}');background-size:contain;background-position:center;aspect-ratio:${art.ratio}`
+    : `background-image:url('art/poses-sprite.jpg');background-size:200% auto;background-position:${art.pos};aspect-ratio:${art.ratio}`;
+  return `<span class="pose-switch pose-seq">
+    <span class="character-pose" style="${style}" role="img" aria-label="${art.label}, illustrated"></span>
+    <span class="technical-pose">${poseArt(name)}</span>
+  </span>`;
+}

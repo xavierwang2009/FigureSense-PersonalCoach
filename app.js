@@ -4,7 +4,7 @@
 
 import { LANDMARKS, FIGURES, DRILLS, pointsNeeded, pointsUsed, videoLink, linkText, hintFor } from './figures.js';
 import { scoreCheckpoint, scoreFigure, waterFrame, targetText } from './geometry.js';
-import { poseArt, deviationGauge, targetLine } from './poses.js';
+import { poseCard, deviationGauge, targetLine } from './poses.js';
 import { detectPose, scanVideo, seekTo } from './autoscan.js';
 import { pointsFromPose } from './ballet-assist.js';
 import { pickSequence } from './figure-assist.js';
@@ -90,12 +90,16 @@ function renderFigure() {
   $('figSummary').textContent = FIG.summary;
   $('figFacts').textContent = `Figure ${FIG.number} · degree of difficulty ${FIG.dd} · ${FIG.checkpoints.length} checkpoints, ${scoredCount()} of them scored`;
   $('findMoments').textContent = `Find the ${FIG.checkpoints.length} moments for me`;
+  // Position cards: an illustration or a diagram (the switch above them chooses).
+  const top = Math.max(...FIG.checkpoints.map(cp => cp.weight));
   $('cpCards').innerHTML = FIG.checkpoints.map(cp => `
-    <div class="cp-card">
-      ${poseArt(cp.pose)}
+    <div class="seq-node${cp.weight === top ? ' is-key' : ''}">
+      ${poseCard(cp.pose)}
       <b>${cp.label}</b>
-      <span class="share">${cp.weight ? Math.round(cp.weight / FIG.totalWeight * 100) + '% of score' : 'Reference, not scored'}</span>
+      <small>${cp.weight ? Math.round(cp.weight / FIG.totalWeight * 100) + '% of score' : 'Reference, not scored'}</small>
     </div>`).join('');
+  $('uploadFigure').textContent = `${FIG.number} · ${FIG.name}`;
+  $('demoFigureNote').hidden = FIG.number === '101';
 }
 
 // ---------------------------------------------------------------- 2. video
@@ -111,11 +115,24 @@ $('fileInput').addEventListener('change', e => {
   if (!file) return;
   if (!file.type.startsWith('video/')) { $('videoInfo').textContent = 'That file is not a video. Choose an MP4 or MOV clip.'; return; }
   if (file.size > MAX_BYTES) { $('videoInfo').textContent = 'That video is over 200 MB. Trim it to just the figure and try again.'; return; }
-  // A different clip starts a new review, leaving saved progress untouched.
+  loadClip(URL.createObjectURL(file));   // plays straight from the device, no upload
+});
+
+// A different clip starts a new review, leaving saved progress untouched.
+function loadClip(src) {
   resetReview();
-  if (player.src) URL.revokeObjectURL(player.src);
-  player.src = URL.createObjectURL(file);   // plays straight from the device, no upload
+  if (player.src && player.src.startsWith('blob:')) URL.revokeObjectURL(player.src);
+  player.src = src;
   $('videoInfo').textContent = 'Loading…';
+}
+
+// Xavier's Ballet Leg clip, so a swimmer can try the app without a video of their own.
+// (Xavier and the project owner approved publishing it; the permission box is for other swimmers' videos.)
+$('demoClip').addEventListener('click', () => {
+  if (FIG.number !== '101') { switchFigure('101'); $('figNote').textContent = 'Switched to Ballet Leg for the demo.'; }
+  const meta = document.querySelector('meta[name="fs-demo-clip"]');
+  loadClip(meta ? meta.content : 'demo-assets/xavier-ballet-leg-demo.mp4');
+  $('videoInfo').textContent = "Loading Xavier's demo…";
 });
 
 player.addEventListener('loadedmetadata', () => {
@@ -199,7 +216,7 @@ $('picks').addEventListener('click', async e => {
   if (version !== reviewVersion || state.current !== id) return;
   await captureFrame();
   if (state.picks) await suggestPoints(true);
-  $('mark').scrollIntoView({ block: 'start' });
+  document.dispatchEvent(new CustomEvent('fs-goto', { detail: 'capture' }));   // nav.js shows the Review step
 });
 
 // ---------------------------------------------------------------- 3. mark

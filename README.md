@@ -14,6 +14,9 @@ the browser; videos are never uploaded.
 | `autoscan.js` | MediaPipe pose detection and scanning the video |
 | `ballet-assist.js` | Picks the five moments and turns a pose into suggested points |
 | `figure-assist.js` | Finds the checkpoint moments automatically for Barracuda and Kip (Ballet Leg uses `ballet-assist.js`) |
+| `nav.js` | Step-by-step screens (Home, Figure, Video, Review, Results, Progress), tab highlight, Illustration/Diagram switch |
+| `theme.css` | The FigureSense prototype's stylesheet, copied unchanged for the same look; app-specific styles stay in `index.html` |
+| `hero-assets/`, `art/`, `demo-assets/`, `figuresense-icon.png` | The prototype's home page, theme switch and intro, position illustrations, Xavier's demo clip and icon |
 | `app.js` | Connects the page: video, capture, marking, saving, results |
 
 ## Put it online (GitHub Pages, free)
@@ -33,3 +36,6 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
 ## Development record
 See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for the reported local starting point,
 the GitHub import, and subsequent changes and test observations.
+
+## Running it
+From this folder run `python3 -m http.server`, then open http://localhost:8000. Opening `index.html` straight from disk does not work, because the browser blocks the modules.
