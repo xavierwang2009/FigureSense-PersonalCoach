@@ -47,6 +47,12 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
 - **Navigation:** the four review steps and Progress sit in a floating glass tab bar; a highlight glides to the tab you open.
 - **Motion:** an animated logo, water ripples that trail the pointer, page transitions, position cards that flip and tilt in 3D, and a score that counts up when Results open. Decorative motion is disabled and the demo starts paused when the device asks for reduced motion.
 
+## Privacy and safety
+
+Videos and working frames stay in browser memory; refreshing clears the review. Pose detection loads MediaPipe code and model files from jsDelivr and Google storage, the app loads Google Fonts, and a drill video loads from YouTube's privacy-enhanced player only when **Watch the drill** is pressed. No video is sent to an analysis service.
+
+The project owner expressly approved publishing the included Xavier portrait, the selected Ballet Leg demo clip and the downloadable archive. This approval does not extend to other athletes or uploads. Do not commit consent records, private review exports, credentials, or additional athlete media without authorization.
+
 ## Development record
 See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for the reported local starting point,
 the GitHub import, and subsequent changes and test observations.
