@@ -43,6 +43,3 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
 ## Development record
 See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for the reported local starting point,
 the GitHub import, and subsequent changes and test observations.
-
-## Running it
-From this folder run `python3 -m http.server`, then open http://localhost:8000. Opening `index.html` straight from disk does not work, because the browser blocks the modules.
