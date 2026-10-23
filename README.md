@@ -1,6 +1,8 @@
 # FigureSense — Artistic Swimming Practice Advisor
 
-FigureSense reviews a practice video of an artistic swimming figure in the browser. It finds the figure's five checkpoints, measures the body against the figure's requirements, shows what is good and where the deviations are, and turns the biggest shortfalls into drills to practise. It is a practice tool, not a validated AI judge or an official scoring system.
+[Open FigureSense](https://figuresense-swim.lx2rice.chatgpt.site) — no installation needed.
+
+FigureSense reviews a practice video of an artistic swimming figure in the browser. It suggests the figure's checkpoints for you to review, measures the body against the figure's requirements, shows what is good and where the deviations are, and turns the biggest shortfalls into drills to practise. Ballet Leg has five checkpoints; Barracuda and Kip each have four. It is a practice tool, not a validated AI judge or an official scoring system.
 
 ## Files
 | File | Job |
@@ -16,13 +18,15 @@ FigureSense reviews a practice video of an artistic swimming figure in the brows
 | `theme.css` | The FigureSense prototype's stylesheet, copied unchanged for the same look; app-specific styles stay in `index.html` |
 | `hero-assets/`, `art/`, `demo-assets/`, `figuresense-icon.png` | The prototype's home page, theme switch and intro, position illustrations, Xavier's demo clip and icon |
 | `app.js` | Connects the page: video, capture, marking, saving, results |
+| `history.js` | Saves scores and feedback on this device and compares compatible reviews |
+| `report.js` | Creates a downloadable report image with checkpoint frames, scores and feedback |
 
 ## Try it on your own computer
 In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
 (Opening index.html directly from Finder won't work, because browsers block modules from files.)
 
 ## Notes
-- "Suggest body points" and "Find the five moments for me" download MediaPipe Pose
+- "Suggest body points" and "Find the moments for me" download MediaPipe Pose
   (Google, open source, Apache 2.0) from the internet the first time.
 - Scores are practice estimates, not official judging.
 
@@ -49,7 +53,7 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
 
 ## Privacy and safety
 
-Videos and working frames stay in browser memory; refreshing clears the review. Pose detection loads MediaPipe code and model files from jsDelivr and Google storage, the app loads Google Fonts, and a drill video loads from YouTube's privacy-enhanced player only when **Watch the drill** is pressed. No video is sent to an analysis service.
+Videos and working frames stay in browser memory; refreshing clears the current review. Scores and feedback explicitly saved to Progress remain in this browser on this device, but videos and frames are not saved there. Download a report image to keep the frames. Clearing browser site data removes saved progress. Pose detection loads MediaPipe code and model files from jsDelivr and Google storage, the app loads Google Fonts, and a drill video loads from YouTube's privacy-enhanced player only when **Watch the drill** is pressed. No video is sent to an analysis service.
 
 The project owner expressly approved publishing the included Xavier portrait, the selected Ballet Leg demo clip and the downloadable archive. This approval does not extend to other athletes or uploads. Do not commit consent records, private review exports, credentials, or additional athlete media without authorization.
 
