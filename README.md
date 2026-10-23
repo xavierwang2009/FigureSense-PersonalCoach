@@ -53,6 +53,15 @@ Videos and working frames stay in browser memory; refreshing clears the review. 
 
 The project owner expressly approved publishing the included Xavier portrait, the selected Ballet Leg demo clip and the downloadable archive. This approval does not extend to other athletes or uploads. Do not commit consent records, private review exports, credentials, or additional athlete media without authorization.
 
+## References and attribution
+
+The Ballet Leg guidance uses the World Aquatics figure manual (February 2026), BP 1, BP 3 and BM 1–2. The manuals are not redistributed here. Verify requirements for the applicable competition.
+
+- [World Aquatics rules and manuals](https://www.worldaquatics.com/artistic-swimming/rules)
+- [USA Artistic Swimming figure review sheets](https://www.usaartisticswim.org/resources/judges/figure-review-sheets)
+- [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/web_js)
+- Ballet Leg drill videos, each played from the start to the end of its drill: Swim England [Ballet leg, Figure 101](https://www.youtube.com/watch?v=zht0xulr7Zc) and [Alternating ballet legs while travelling head first](https://www.youtube.com/watch?v=JdfNGxCfDwU); Natsumi Coaching [Training for Ballet leg](https://www.youtube.com/watch?v=5iBki3t56fU), [Wall ballet leg](https://www.youtube.com/watch?v=_fS01-_mLvI), [Layback Sculling for Ballet Legs](https://www.youtube.com/watch?v=CzYpbjrOTrc) and [How to Improve Your Pointed Toes](https://www.youtube.com/watch?v=-xOs_6QC9g8); The Online Synchro Coach [Ballet Leg Drill](https://www.youtube.com/watch?v=0GZ-f-7S65E) and [Layout, sailboat and ballet leg drill](https://www.youtube.com/watch?v=Flk-_pupvu0); Aquatica Synchro Club [Practicing Back Layout Position on Land](https://www.youtube.com/watch?v=I3KkBPRtVFI).
+
 ## Development record
 See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for the reported local starting point,
 the GitHub import, and subsequent changes and test observations.
