@@ -16,7 +16,7 @@ FigureSense reviews a practice video of an artistic swimming figure in the brows
 | `figure-assist.js` | Finds the checkpoint moments automatically for Barracuda and Kip (Ballet Leg uses `ballet-assist.js`) |
 | `nav.js` | Step-by-step screens (Home, Figure, Video, Review, Results, Progress), tab highlight, Illustration/Diagram switch |
 | `theme.css` | The FigureSense prototype's stylesheet, copied unchanged for the same look; app-specific styles stay in `index.html` |
-| `hero-assets/`, `art/`, `demo-assets/`, `figuresense-icon.png` | The prototype's home page, theme switch and intro, position illustrations, Xavier's demo clip and icon |
+| `hero-assets/`, `art/`, `demo-assets/`, `figuresense-icon.png` | The prototype's home page, theme switch and intro, position illustrations, my demo clip and icon |
 | `app.js` | Connects the page: video, capture, marking, saving, results |
 | `history.js` | Saves scores and feedback on this device and compares compatible reviews |
 | `report.js` | Creates a downloadable report image with checkpoint frames, scores and feedback |
