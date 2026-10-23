@@ -20,11 +20,6 @@ the browser; videos are never uploaded.
 | `hero-assets/`, `art/`, `demo-assets/`, `figuresense-icon.png` | The prototype's home page, theme switch and intro, position illustrations, Xavier's demo clip and icon |
 | `app.js` | Connects the page: video, capture, marking, saving, results |
 
-## Put it online (GitHub Pages, free)
-1. Create a new public repository on GitHub and upload all the files in this folder.
-2. Settings → Pages → Deploy from a branch → `main`, folder `/ (root)` → Save.
-3. After a minute or two the app is at `https://<your-username>.github.io/<repository-name>/`.
-
 ## Try it on your own computer
 In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
 (Opening index.html directly from Finder won't work, because browsers block modules from files.)
