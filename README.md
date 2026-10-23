@@ -26,7 +26,7 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
   (Google, open source, Apache 2.0) from the internet the first time.
 - Scores are practice estimates, not official judging.
 
-## Screens (matching the FigureSense prototype's look)
+## Screens
 - **Figure:** pick the swimmer group (Novice, Intermediate, 12 & Under, Youth) and a figure from that group's sheet.
   Figures the app can't review yet are greyed out. The figure card has the description, the position sequence
   with each position's share of the score, and the technical requirements.
