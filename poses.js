@@ -131,14 +131,46 @@ const ILLUSTRATION = {
   ballet:   { img: 'hero-assets/ballet-leg-human.png', ratio: '3 / 2', label: 'Ballet Leg' },
 };
 
-export function poseCard(name) {
+export function poseCard(name, size = 'pose-seq') {
   const art = ILLUSTRATION[name];
-  if (!art) return `<span class="pose-switch pose-seq pose-diagram-only">${poseArt(name)}</span>`;
+  if (!art) return `<span class="pose-switch ${size} pose-diagram-only">${poseArt(name)}</span>`;
   const style = art.img
     ? `background-image:url('${art.img}');background-size:contain;background-position:center;aspect-ratio:${art.ratio}`
     : `background-image:url('art/poses-sprite.jpg');background-size:200% auto;background-position:${art.pos};aspect-ratio:${art.ratio}`;
-  return `<span class="pose-switch pose-seq">
+  return `<span class="pose-switch ${size}">
     <span class="character-pose" style="${style}" role="img" aria-label="${art.label}, illustrated"></span>
     <span class="technical-pose">${poseArt(name)}</span>
   </span>`;
+}
+
+// ---------------------------------------------------------------- dial
+// The FigureSense prototype's deviation dial (poses.js, deviationDial), as an SVG string:
+// a plumb line, the 0.2 / 0.5 / 1.0 bands either side, and a needle at the measured deviation.
+const DIAL = { cx: 60, cy: 70, r: 54 };
+const dialPoint = (deg, r = DIAL.r) => {
+  const a = (deg * Math.PI) / 180;
+  return [DIAL.cx + r * Math.sin(a), DIAL.cy - r * Math.cos(a)];
+};
+const dialArc = (from, to, r) => {
+  const [x0, y0] = dialPoint(from, r), [x1, y1] = dialPoint(to, r);
+  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+};
+
+export function deviationDial(deviation, tol = [15, 30]) {
+  const [small, medium] = tol;
+  const outer = 60;
+  const shown = Math.min(outer, Math.abs(deviation));
+  const band = shown <= small ? 'small' : shown <= medium ? 'medium' : 'large';
+  const arc = (a, b, cls) => `<path d="${dialArc(a, b, DIAL.r)}" class="dial-band ${cls}" stroke-width="7"/>`;
+  const [px, py] = dialPoint(0, DIAL.r - 6);
+  const ticks = [small, medium].flatMap(t => [-1, 1].map(sign => {
+    const [x0, y0] = dialPoint(sign * t, DIAL.r - 11), [x1, y1] = dialPoint(sign * t, DIAL.r - 4);
+    return `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" class="dial-tick"/>`;
+  })).join('');
+  const [nx, ny] = dialPoint(shown, DIAL.r - 12);
+  return `<svg viewBox="0 0 120 78" class="dial" role="img"><title>${deviation.toFixed(1)} degrees off — ${band} band</title>
+    ${arc(-outer, -medium, 'dial-large')}${arc(-medium, -small, 'dial-medium')}${arc(-small, small, 'dial-small')}${arc(small, medium, 'dial-medium')}${arc(medium, outer, 'dial-large')}
+    <line x1="${DIAL.cx}" y1="${DIAL.cy}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" class="dial-plumb"/>${ticks}
+    <line x1="${DIAL.cx}" y1="${DIAL.cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" class="dial-needle is-${band}"/>
+    <circle cx="${DIAL.cx}" cy="${DIAL.cy}" r="3.4" class="dial-hub is-${band}"/></svg>`;
 }

@@ -34,6 +34,20 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
   (Google, open source, Apache 2.0) from the internet the first time.
 - Scores are practice estimates, not official judging.
 
+## Screens (matching the FigureSense prototype's look)
+- **Figure:** pick the swimmer group (Novice, Intermediate, 12 & Under, Youth) and a figure from that group's sheet.
+  Figures the app can't review yet are greyed out. The figure card has the description, the position sequence
+  with each position's share of the score, and the technical requirements.
+- **Video:** choose or drop a clip; a preview plays under the box.
+- **Review:** a heading with the position picture, a checkpoint stepper with scores, a timeline with numbered marks,
+  ±0.5 s / ±1 frame buttons, keyboard shortcuts (←/→, Shift, Space, C), thumbnails of captured frames,
+  "Inspect & fine-tune" (move the frame ±1 frame and keep the dots), coloured point chips, Coach's eye and
+  measurement cards with dials.
+- **Results:** a scoreboard that counts up, a diagnostics card per checkpoint (your frame with target lines beside a
+  required-vs-your-video table), and "What to work on": the focus position, the top problems with pool and land drills,
+  each drill's video segment playing in the card, a "watch for" list for the coach, and a safety line.
+- **Progress:** saved reviews on this device (unchanged).
+
 ## Development record
 See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for the reported local starting point,
 the GitHub import, and subsequent changes and test observations.

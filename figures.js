@@ -190,7 +190,7 @@ export const BARRACUDA = {
   name: 'Barracuda',
   short: 'Barracuda',
   finder: 'barracuda',
-  dd: 1.9,
+  dd: 1.8,         // the team's figure sheet (Intermediate and 12 & Under)
   totalWeight: 32,   // practice weights: Back Pike 10, Vertical 14, Descent 8
   hints: TOGETHER_HINTS,
   summary: 'Begin in Back Layout. Raise the legs to vertical as the body sinks into a Back Pike, toes just under the surface. ' +
@@ -310,78 +310,104 @@ export const KIP = {
 // Every figure the app offers, in the order shown in the picker.
 export const FIGURES = [BALLET_LEG, BARRACUDA, KIP];
 
-// The drill library. Each video link starts at the moment the drill begins.
+// Swimmer groups and their figures, from the team's figure sheet (as in the FigureSense prototype).
+// "number" matches a figure above when FigureSense Simple can review it; the rest are listed
+// so swimmers see their whole sheet, but cannot be reviewed here yet.
+export const GROUPS = [
+  { id: 'novice', label: 'Novice', sections: [{ label: null, figures: [
+    { number: '100', name: 'Bent Knee, Alternate' }, { number: '201', name: 'Dolphin' },
+    { number: '316', name: 'Kipnus' }, { number: '358', name: 'Snapping Turtle' }] }] },
+  { id: 'intermediate', label: 'Intermediate', sections: [
+    { label: 'Compulsory', figures: [{ number: '101', name: 'Ballet Leg, Single' }, { number: '301', name: 'Barracuda' }] },
+    { label: 'Selection group 1', figures: [{ number: '360', name: 'Walkover, Front' }, { number: '318', name: 'Kip, Bent Knee' }] },
+    { label: 'Selection group 2', figures: [{ number: '348', name: 'Tower' }, { number: '420', name: 'Walkover, Back' }] }] },
+  { id: 'u12', label: '12 & Under', sections: [
+    { label: 'Compulsory', figures: [{ number: '106', name: 'Ballet Leg, Straight' }, { number: '301', name: 'Barracuda' }] },
+    { label: 'Optional group 1', figures: [{ number: '359', name: 'Front Ariana' }, { number: '348', name: 'Tower' }] },
+    { label: 'Optional group 2', figures: [{ number: '363', name: 'Water Drop' }, { number: '401', name: 'Swordfish' }] },
+    { label: 'Optional group 3', figures: [{ number: '311', name: 'Kip' }, { number: '227d', name: 'Swanita, Spinning 180' }] }] },
+  { id: 'youth', label: 'Youth', sections: [
+    { label: 'Section A', figures: [{ number: '307e', name: 'Flying Fish, Spinning 360' }, { number: '437', name: 'Cyclone, Open 180' },
+      { number: '308h', name: 'Barracuda Airborne Split, Spin Up 180' }, { number: '407', name: 'Swordfish Straight Leg Ariana' }] },
+    { label: 'Section B', figures: [{ number: '356f', name: 'Whip, Continuous Spin 720' }, { number: '441', name: 'Saturn' },
+      { number: '352', name: 'Venus' }, { number: '240i', name: 'Albatross, Spin Up 360' }] },
+    { label: 'Section C', figures: [{ number: '140j', name: 'Flamingo, Bent Knee, Combined Spin 360 + 360' }, { number: '421', name: 'Walkover, Back Closing 360' },
+      { number: '440d', name: 'Ipanema, Spinning 180' }, { number: '154f', name: 'London, Continuous Spin 720' }] }] },
+];
+
+// The drill library. Each video link starts at the moment the drill begins; "end" is where
+// the drill's part of the video stops (the same segments the FigureSense prototype plays).
 // Drills without a video link to a written guide instead ("guide").
 export const DRILLS = {
   'wall-ballet-leg': {
     name: 'Ballet leg at the wall', where: 'Pool', dose: '3–4 slow run-throughs per leg',
     how: 'Lie in a back layout with your feet against the pool wall. Go through the ballet leg while your upper body stays exactly where it is and your body stays one tight, straight line. The wall shows any drift.',
-    video: { channel: 'Natsumi Coaching', id: '_fS01-_mLvI', start: 0 },
+    video: { channel: 'Natsumi Coaching', id: '_fS01-_mLvI', start: 0 , end: 31, title: 'Wall ballet leg' },
   },
   'thigh-still': {
     name: 'Thigh-still extensions', where: 'Pool', dose: '5 slow extensions per leg',
     how: 'From bent knee, keep the thigh exactly where it is and lift only the lower leg until it points straight up. Lower it back to bent knee the same way. Start at the wall, on slow counts.',
-    video: { channel: 'Swim England', id: 'zht0xulr7Zc', start: 10 },
+    video: { channel: 'Swim England', id: 'zht0xulr7Zc', start: 10 , end: 22, title: 'Ballet leg (Figure 101)' },
   },
   'layout-boards': {
     name: 'Layout hold on kickboards', where: 'Land', dose: '3 holds of 15–20 s',
     how: 'Lie on your back with your head on one kickboard and your feet on another. Lift your hips until you are one straight line, knees and feet extended, and hold.',
-    video: { channel: 'The Online Synchro Coach', id: 'Flk-_pupvu0', start: 5 },
+    video: { channel: 'The Online Synchro Coach', id: 'Flk-_pupvu0', start: 5 , end: 10, title: 'Layout, sailboat and ballet leg drill on kickboards' },
   },
   'ballet-leg-boards': {
     name: 'Ballet leg hold on kickboards', where: 'Land', dose: '3 holds of 15 s per leg',
     how: 'Head on one kickboard, the surface foot on another, hips lifted. Raise one leg to exactly 90° with knees extended and toes pointed, and hold without letting the hips sink.',
-    video: { channel: 'The Online Synchro Coach', id: 'Flk-_pupvu0', start: 19 },
+    video: { channel: 'The Online Synchro Coach', id: 'Flk-_pupvu0', start: 19 , end: 31, title: 'Layout, sailboat and ballet leg drill on kickboards' },
   },
   'layback-scull': {
     name: 'Layback sculling for height', where: 'Pool', dose: '4 holds of 15 s',
     how: 'Practise the scull that holds a ballet leg up: elbows bent, hands under the hips pressing the water down, so the hips rise and stay at the surface. Reaching toward your feet makes you pike.',
-    video: { channel: 'Natsumi Coaching', id: 'CzYpbjrOTrc', start: 28 },
+    video: { channel: 'Natsumi Coaching', id: 'CzYpbjrOTrc', start: 28 , end: 100, title: 'Layback Sculling for Ballet Legs' },
   },
   'ballet-laps': {
     name: 'Travelling ballet legs', where: 'Pool', dose: 'One length, alternating legs',
     how: 'Travel headfirst in a back layout. Lift into a ballet leg, return to layout, then do the other leg, one count per movement on an even beat, with a full layout in between.',
-    video: { channel: 'Swim England', id: 'JdfNGxCfDwU', start: 5 },
+    video: { channel: 'Swim England', id: 'JdfNGxCfDwU', start: 5 , end: 18, title: 'Alternating ballet legs while travelling head first' },
   },
   'floor-ballet-leg': {
     name: 'Bridge with a ballet leg', where: 'Land', dose: '3 holds of 10 s per leg',
     how: 'Lie on your back with knees bent and lift your hips into a bridge. Raise one leg straight up and hold it still with the hips level, then lower the hips with control.',
-    video: { channel: 'Natsumi Coaching', id: '5iBki3t56fU', start: 124 },
+    video: { channel: 'Natsumi Coaching', id: '5iBki3t56fU', start: 124 , end: 178, title: 'Training for Ballet leg' },
   },
   'layout-blocks': {
     name: 'Back layout on blocks', where: 'Land', dose: '3 holds of 20 s',
     how: 'Lie with your head and heels on blocks and lift your hips until your body is one flat line from ear to ankle. Hold it, then move to bent knee and back without the hips dropping.',
-    video: { channel: 'Aquatica Synchro Club', id: 'I3KkBPRtVFI', start: 10 },
+    video: { channel: 'Aquatica Synchro Club', id: 'I3KkBPRtVFI', start: 10 , end: 45, title: 'Practicing Back Layout Position on Land' },
   },
   'plank': {
     name: 'Plank, then lift an arm and leg', where: 'Land', dose: '3 holds of 20–30 s',
     how: 'Hold one straight line from head to heels on your elbows. When that is steady, lift one arm and the opposite leg without the hips twisting or sagging.',
-    video: { channel: 'Natsumi Coaching', id: '5iBki3t56fU', start: 180 },
+    video: { channel: 'Natsumi Coaching', id: '5iBki3t56fU', start: 180 , end: 252, title: 'Training for Ballet leg' },
   },
   'seated-pike': {
     name: 'Seated pike stretch', where: 'Land', dose: 'Hold 20 s, 2–3 times',
     how: 'Sit with legs together and straight, toes pointed, and reach toward your toes as far as you can with straight legs. Ease off if it causes sharp pain.',
-    video: { channel: 'Natsumi Coaching', id: '-xOs_6QC9g8', start: 210 },
+    video: { channel: 'Natsumi Coaching', id: '-xOs_6QC9g8', start: 210 , end: 258, title: 'How to Improve Your Pointed Toes' },
   },
   'floor-rehearsal': {
     name: 'Floor figure rehearsal', where: 'Land', dose: '3 slow run-throughs per leg',
     how: 'Lie on your back and move through back layout, bent knee, ballet leg, bent knee and back layout on slow, even counts. Keep the thigh still while the lower leg moves. Check from the side in a mirror or a phone video.',
-    video: { channel: 'Natsumi Coaching', id: '5iBki3t56fU', start: 40 },
+    video: { channel: 'Natsumi Coaching', id: '5iBki3t56fU', start: 40 , end: 124, title: 'Training for Ballet leg' },
   },
   'band-point': {
     name: 'Band toe points', where: 'Land', dose: '2 sets of 15 per foot',
     how: 'Sit with legs straight and a resistance band under the ball of the foot. Point the toes down against the band, then return slowly. Keep the knee straight.',
-    video: { channel: 'Natsumi Coaching', id: '-xOs_6QC9g8', start: 40 },
+    video: { channel: 'Natsumi Coaching', id: '-xOs_6QC9g8', start: 40 , end: 145, title: 'How to Improve Your Pointed Toes' },
   },
   'toe-slide': {
     name: 'Toe slides', where: 'Land or pool', dose: '5 slow slides per leg',
     how: 'On your back, slide the big toe along the inside of the straight leg up to bent knee and back down, keeping contact the whole way.',
-    video: { channel: 'Swim England', id: 'zht0xulr7Zc', start: 5 },
+    video: { channel: 'Swim England', id: 'zht0xulr7Zc', start: 5 , end: 27, title: 'Ballet leg (Figure 101)' },
   },
   'dry-hips-wall': {
     name: 'Dry hips at the wall', where: 'Pool', dose: '3–4 run-throughs per leg',
     how: 'With your feet at the pool wall, go from back layout through bent knee to ballet leg and back while keeping both hips dry. The upper body stays still and the sculling stays easy.',
-    video: { channel: 'The Online Synchro Coach', id: '0GZ-f-7S65E', start: 0 },
+    video: { channel: 'The Online Synchro Coach', id: '0GZ-f-7S65E', start: 0 , end: 17, title: 'Ballet Leg Drill' },
   },
   // ---- Stage 2: Barracuda and Kip drills. Summarised from SwimOutlet's written guides.
   'roll-down': {

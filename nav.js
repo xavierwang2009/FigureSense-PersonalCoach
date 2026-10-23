@@ -37,6 +37,34 @@ function showNow(name, fromHistory, animated) {
   window.scrollTo({ top: 0, behavior: animated ? 'instant' : 'smooth' });
   // The marking canvas sizes itself to its box; tell it the box may have changed.
   if (name === 'capture') window.dispatchEvent(new Event('resize'));
+  if (name === 'diag') animateResults();
+}
+
+// Results arrive with a count-up score, cards that fade in one after another, and a splash
+// (hero-assets/fx.js) once every checkpoint is saved. Adapted from the prototype.
+function animateResults() {
+  const board = $('scoreboard');
+  if (!board || reducedMotion.matches) return;
+  const ease = 'cubic-bezier(.2,.8,.2,1)';
+  const counters = [board.querySelector('.big'), board.querySelector('.stat b')].filter(Boolean);
+  for (const node of counters) {
+    const text = node.textContent;
+    const target = parseFloat(text);
+    if (!Number.isFinite(target)) continue;
+    const decimals = (text.split('.')[1] || '').replace(/\D.*$/, '').length;
+    const start = performance.now();
+    const tick = now => {
+      const u = Math.min(1, (now - start) / 1100);
+      node.textContent = u < 1 ? (target * (1 - Math.pow(1 - u, 4))).toFixed(decimals) : text;
+      if (u < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  [...document.querySelectorAll('#diagSeq .seq-node, #diagnostics .cmp-card, #plan > *, #plan .drill-card')].forEach((node, i) => {
+    node.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 520, delay: 120 + Math.min(i, 14) * 45, easing: ease, fill: 'backwards' });
+  });
+  if (board.dataset.complete === 'true') document.dispatchEvent(new CustomEvent('fs:results'));
 }
 
 // The tab highlight glides to the active step and lands with a soft pulse.

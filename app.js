@@ -2,9 +2,9 @@
 // Connects the page to the other modules: video, capture, marking points,
 // saving checkpoints, results and drills. Saved progress stays in this browser; videos and frames stay in this tab.
 
-import { LANDMARKS, FIGURES, DRILLS, pointsNeeded, pointsUsed, videoLink, linkText, hintFor } from './figures.js';
+import { LANDMARKS, FIGURES, GROUPS, DRILLS, pointsNeeded, pointsUsed, videoLink, linkText, hintFor } from './figures.js';
 import { scoreCheckpoint, scoreFigure, waterFrame, targetText } from './geometry.js';
-import { poseCard, deviationGauge, targetLine } from './poses.js';
+import { poseCard, deviationGauge, deviationDial, targetLine } from './poses.js';
 import { detectPose, scanVideo, seekTo } from './autoscan.js';
 import { pointsFromPose } from './ballet-assist.js';
 import { pickSequence } from './figure-assist.js';
@@ -56,6 +56,20 @@ function setStatus(el, text, kind = '') {
   el.className = 'status' + (kind ? ' ' + kind : '');
 }
 
+// Small helpers for the prototype's look: icons, score colours and each checkpoint's share of the score.
+const ICONS = {
+  check: '<path d="M3.5 8.5 6.5 11.5 12.5 4.5"/>',
+  alert: '<path d="M8 3.5v5.5M8 12v.5"/>',
+  eye: '<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="1.8"/>',
+};
+const icon = name => `<span class="ico ico-${name}"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg></span>`;
+const scoreColor = score => (score >= 8 ? 'var(--accent)' : score >= 6 ? 'var(--gold)' : 'var(--rose)');
+const shareOf = weight => (FIG.totalWeight ? Math.round(weight / FIG.totalWeight * 100) : 0);
+// Ballet Leg's weights are the manual's numerical values (NV); Barracuda and Kip use practice weights.
+const weightWord = () => (FIG.number === '101' ? 'NV' : 'weight');
+const toggleClass = (el, name, on) => { if (el && el.classList) el.classList.toggle(name, on); };
+const BAND_TEXT = { clean: 'Meets the requirement', small: 'Small deviation', medium: 'Medium deviation', large: 'Large deviation' };
+
 // ---------------------------------------------------------------- 1. figure
 // Is there work in this review that switching figure would clear?
 const hasWork = () => Object.keys(state.saved).length > 0 || Object.values(state.drafts).some(d => d && d.frame);
@@ -84,11 +98,53 @@ $('figSwitch').addEventListener('click', e => {
   $('figNote').textContent = `Now reviewing ${FIG.short}.`;
 });
 
+// Swimmer groups follow the team's figure sheet. Figures FigureSense can't review yet are listed but greyed out.
+const GROUP_LIST = typeof GROUPS === 'undefined' ? [] : GROUPS;
+let groupId = 'intermediate';
+try {
+  const g = localStorage.getItem('figuresense-group');
+  if (GROUP_LIST.some(x => x.id === g)) groupId = g;
+} catch { /* storage blocked: Intermediate */ }
+
+const figureOption = f => `<option value="${f.number}">${f.number} · ${f.name} (DD ${f.dd})</option>`;
+function figureOptions() {
+  const group = GROUP_LIST.find(g => g.id === groupId);
+  if (!group) return FIGURES.map(figureOption).join('');
+  const listed = new Set();
+  let html = group.sections.map(section => {
+    const options = section.figures.map(x => {
+      const f = FIGURES.find(y => y.number === x.number);
+      if (!f) return `<option value="" disabled>${x.number} · ${x.name} (coming later)</option>`;
+      listed.add(f.number);
+      return figureOption(f);
+    }).join('');
+    return section.label ? `<optgroup label="${section.label}">${options}</optgroup>` : options;
+  }).join('');
+  const others = FIGURES.filter(f => !listed.has(f.number));
+  if (others.length) html += `<optgroup label="Other figures FigureSense can review">${others.map(figureOption).join('')}</optgroup>`;
+  return html;
+}
+
+$('group').addEventListener('change', e => {
+  groupId = e.target.value;
+  try { localStorage.setItem('figuresense-group', groupId); } catch { /* fine without it */ }
+  renderFigure();
+});
+
 function renderFigure() {
-  $('figPick').innerHTML = FIGURES.map(f => `<option value="${f.number}">${f.number} ${f.name} (DD ${f.dd})</option>`).join('');
+  const group = GROUP_LIST.find(g => g.id === groupId);
+  $('group').innerHTML = GROUP_LIST.map(g => `<option value="${g.id}">${g.label}</option>`).join('');
+  $('group').value = groupId;
+  $('figPick').innerHTML = figureOptions();
   $('figPick').value = FIG.number;
+  if (group) {
+    const all = group.sections.flatMap(s => s.figures);
+    const ready = all.filter(x => FIGURES.some(f => f.number === x.number)).length;
+    $('groupNote').textContent = `${group.label} figure sheet: ${ready} of ${all.length} figures can be reviewed now; the rest are coming later.`;
+  }
+  $('figTitle').textContent = `Figure ${FIG.number} · ${FIG.name}`;
+  $('figFacts').textContent = `DD ${FIG.dd} · total ${weightWord()} ${FIG.totalWeight.toFixed(1)}`;
   $('figSummary').textContent = FIG.summary;
-  $('figFacts').textContent = `Figure ${FIG.number} · degree of difficulty ${FIG.dd} · ${FIG.checkpoints.length} checkpoints, ${scoredCount()} of them scored`;
   $('findMoments').textContent = `Find the ${FIG.checkpoints.length} moments for me`;
   // Position cards: an illustration or a diagram (the switch above them chooses).
   const top = Math.max(...FIG.checkpoints.map(cp => cp.weight));
@@ -96,7 +152,14 @@ function renderFigure() {
     <div class="seq-node${cp.weight === top ? ' is-key' : ''}">
       ${poseCard(cp.pose)}
       <b>${cp.label}</b>
-      <small>${cp.weight ? Math.round(cp.weight / FIG.totalWeight * 100) + '% of score' : 'Reference, not scored'}</small>
+      <small>${cp.weight ? `${weightWord()} ${cp.weight.toFixed(1)} · ${shareOf(cp.weight)}% of score` : 'Reference, not scored'}</small>
+    </div>`).join('');
+  // Technical requirements: what each position is measured against, and what a coach watches for.
+  $('figReqs').innerHTML = FIG.checkpoints.map(cp => `
+    <div class="req">
+      <h4>${cp.label}${cp.weight ? '' : ' <small>(reference)</small>'}</h4>
+      <ul>${(cp.metrics || []).map(m => `<li>${m.label}: <b>${targetText(m)}</b></li>`).join('')}
+        ${cp.checks.map(c => `<li>${c.text} <small>${c.tests ? '(measured)' : "(coach's eye)"}</small></li>`).join('')}</ul>
     </div>`).join('');
   $('uploadFigure').textContent = `${FIG.number} · ${FIG.name}`;
   $('demoFigureNote').hidden = FIG.number === '101';
@@ -118,11 +181,30 @@ $('fileInput').addEventListener('change', e => {
   loadClip(URL.createObjectURL(file));   // plays straight from the device, no upload
 });
 
+// Drop a video on the box (once permission is ticked).
+const dropZone = $('fileLabel');
+['dragenter', 'dragover'].forEach(name => dropZone.addEventListener(name, e => {
+  e.preventDefault();
+  if (!$('fileInput').disabled) toggleClass(dropZone, 'is-dragover', true);
+}));
+['dragleave', 'drop'].forEach(name => dropZone.addEventListener(name, () => toggleClass(dropZone, 'is-dragover', false)));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  if ($('fileInput').disabled) { $('videoInfo').textContent = 'Tick the permission box first.'; return; }
+  const file = e.dataTransfer && e.dataTransfer.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('video/')) { $('videoInfo').textContent = 'That file is not a video. Choose an MP4 or MOV clip.'; return; }
+  if (file.size > MAX_BYTES) { $('videoInfo').textContent = 'That video is over 200 MB. Trim it to just the figure and try again.'; return; }
+  loadClip(URL.createObjectURL(file));
+});
+
 // A different clip starts a new review, leaving saved progress untouched.
 function loadClip(src) {
   resetReview();
   if (player.src && player.src.startsWith('blob:')) URL.revokeObjectURL(player.src);
   player.src = src;
+  const preview = $('uploadPreview');
+  if (preview) { preview.src = src; preview.hidden = false; }
   $('videoInfo').textContent = 'Loading…';
 }
 
@@ -148,8 +230,44 @@ player.addEventListener('loadedmetadata', () => {
 player.addEventListener('error', () => {
   $('videoInfo').textContent = "This video can't be played here. Export it as an H.264 MP4 and try again.";
 });
-player.addEventListener('timeupdate', () => { $('timeNow').textContent = player.currentTime.toFixed(2) + ' s'; });
-player.addEventListener('seeked', () => { $('timeNow').textContent = player.currentTime.toFixed(2) + ' s'; });
+function showTime() {
+  $('timeNow').textContent = player.currentTime.toFixed(2) + ' s';
+  if (player.duration) $('tlProgress').style.width = (player.currentTime / player.duration) * 100 + '%';
+}
+player.addEventListener('timeupdate', showTime);
+player.addEventListener('seeked', showTime);
+player.addEventListener('play', () => { $('playPause').textContent = 'Pause'; });
+player.addEventListener('pause', () => { $('playPause').textContent = 'Play'; });
+player.addEventListener('durationchange', () => renderTimeline());
+
+// The timeline under the video: click to jump; numbered marks show each checkpoint's frame.
+$('tlTrack').addEventListener('click', e => {
+  if (!player.duration) return;
+  const r = $('tlTrack').getBoundingClientRect();
+  player.pause();
+  player.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * player.duration;
+});
+function renderTimeline() {
+  const dur = player.duration;
+  if (!dur) { $('tlMarks').innerHTML = ''; return; }
+  $('tlMarks').innerHTML = FIG.checkpoints.map((cp, i) => {
+    const c = state.drafts[cp.id] || state.saved[cp.id];
+    const t = c && c.time !== null ? c.time : state.picks ? state.picks[cp.id] : null;
+    if (t === null || t === undefined) return '';
+    return `<div class="tl-mark" style="left:${(t / dur) * 100}%" title="${cp.label}"><b>${i + 1}</b></div>`;
+  }).join('');
+}
+function togglePlay() { if (player.paused) player.play(); else player.pause(); }
+$('playPause').addEventListener('click', togglePlay);
+function nudge(seconds) {
+  if (!player.duration) return;
+  player.pause();
+  player.currentTime = Math.max(0, Math.min(player.duration, player.currentTime + seconds));
+}
+$('stepRow').addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-nudge]');
+  if (b) nudge(Number(b.dataset.nudge));
+});
 
 function step(dir) {
   player.pause();
@@ -157,6 +275,17 @@ function step(dir) {
 }
 $('prevFrame').addEventListener('click', () => step(-1));
 $('nextFrame').addEventListener('click', () => step(1));
+
+// Keyboard on the Review step: ←/→ one frame (Shift: 0.5 s), Space play/pause, C capture.
+window.addEventListener('keydown', e => {
+  if (document.body.dataset.page !== 'capture' || !player.videoWidth) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t === canvas)) return;
+  if (e.key === 'ArrowLeft') { if (e.shiftKey) nudge(-0.5); else step(-1); e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { if (e.shiftKey) nudge(0.5); else step(1); e.preventDefault(); }
+  else if (e.key === ' ' && !(t && t.tagName === 'BUTTON')) { togglePlay(); e.preventDefault(); }
+  else if ((e.key === 'c' || e.key === 'C') && !e.repeat && !e.metaKey && !e.ctrlKey) { captureFrame(); e.preventDefault(); }
+});
 
 // Find the five moments automatically (optional).
 let scanning = false;
@@ -201,6 +330,7 @@ $('findMoments').addEventListener('click', async () => {
 
 function renderPicks() {
   const list = $('picks');
+  renderTimeline();
   if (!state.picks) { list.innerHTML = ''; return; }
   list.innerHTML = FIG.checkpoints.map(cp => {
     const t = state.picks[cp.id];
@@ -298,15 +428,32 @@ $('zoomOut').addEventListener('click', () => setZoom(-1));
 $('zoomFit').addEventListener('click', () => setZoom(0));
 
 function renderTabs() {
-  $('tabs').innerHTML = FIG.checkpoints.map(cp => {
+  $('tabs').innerHTML = FIG.checkpoints.map((cp, i) => {
     const d = state.drafts[cp.id], s = state.saved[cp.id];
-    let label = '<small>Empty</small>';
-    if (s && d && snapshot(d) !== snapshot(s)) label = '<small class="edits">Unsaved changes</small>';
-    else if (s) label = `<small class="saved">Saved · ${scoreCheckpoint(cp, s.points, s.checks, LABELS, state.saved).score.toFixed(1)}</small>`;
-    else if (d && d.frame) label = '<small>Not saved yet</small>';
-    return `<button type="button" class="tab" data-cp="${cp.id}" aria-pressed="${cp.id === state.current}">${cp.label}${label}</button>`;
+    const edited = s && d && snapshot(d) !== snapshot(s);
+    const pending = !s && d && d.frame;
+    const cls = 'stepdot' + (cp.id === state.current ? ' is-current' : '') + (s ? ' is-done' : pending ? ' is-pending' : '');
+    const sub = edited ? 'unsaved edits' : pending ? `${d.time.toFixed(2)}s · not saved yet` : cp.weight ? `${shareOf(cp.weight)}% of score` : 'reference';
+    const score = s ? scoreCheckpoint(cp, s.points, s.checks, LABELS, state.saved).score : null;
+    return `<li><button type="button" class="${cls}" data-cp="${cp.id}" aria-pressed="${cp.id === state.current}">${poseCard(cp.pose, 'pose-sm')}
+      <span><b>${i + 1}. ${cp.label}</b><small>${sub}</small></span>${score === null ? '' : `<em style="color:${scoreColor(score)}">${score.toFixed(1)}</em>`}</button></li>`;
+  }).join('');
+  renderTimeline();
+  renderThumbs();
+}
+
+// Small pictures of each captured frame, to jump between checkpoints.
+function renderThumbs() {
+  $('thumbs').innerHTML = FIG.checkpoints.map((cp, i) => {
+    const c = state.drafts[cp.id] || state.saved[cp.id];
+    if (!c || !c.thumb) return '';
+    return `<button type="button" class="thumb" data-cp="${cp.id}"><img src="${c.thumb}" alt="${cp.label} at ${c.time.toFixed(2)} seconds"><span>${i + 1} · ${c.time.toFixed(2)}s</span></button>`;
   }).join('');
 }
+$('thumbs').addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-cp]');
+  if (b) selectCheckpoint(b.dataset.cp);
+});
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-cp]');
   if (b) selectCheckpoint(b.dataset.cp);
@@ -331,6 +478,7 @@ async function captureFrame() {
   const d = draft();
   d.frame = frame;
   d.time = player.currentTime;
+  d.thumb = smallCopy(frame, 160);
   d.note = '';
   // The camera usually stays still, so reuse a water line from another checkpoint.
   if (!d.points.waterA || !d.points.waterB) {
@@ -347,8 +495,31 @@ async function captureFrame() {
 }
 $('capture').addEventListener('click', captureFrame);
 
+function smallCopy(frame, width) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = Math.round(frame.height * width / frame.width);
+    c.getContext('2d').drawImage(frame, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.7);
+  } catch { return null; }
+}
+
+// Fine-tune this checkpoint's frame by one video frame; the dots stay where they are.
+async function shiftFrame(dir) {
+  const d = draft();
+  if (!d || !d.frame || !player.duration) return;
+  const points = JSON.parse(JSON.stringify(d.points)), checks = [...d.checks];
+  await seekTo(player, Math.max(0, Math.min(player.duration, d.time + dir * FRAME)));
+  await captureFrame();
+  const now = draft();
+  if (now) { now.points = points; now.checks = checks; now.note = ''; renderMarking(); }
+}
+$('cpEarlier').addEventListener('click', () => shiftFrame(-1));
+$('cpLater').addEventListener('click', () => shiftFrame(1));
+
 function copyDraft(s) {
-  return { time: s.time, frame: s.frame, points: JSON.parse(JSON.stringify(s.points)), checks: [...s.checks], note: '' };
+  return { time: s.time, frame: s.frame, thumb: s.thumb, points: JSON.parse(JSON.stringify(s.points)), checks: [...s.checks], note: '' };
 }
 
 async function suggestPoints(quiet = false) {
@@ -391,8 +562,16 @@ function nextMissing() {
 function renderMarking(clearStatus = true) {
   const cp = cpById(state.current);
   const d = draft() || (state.saved[cp.id] ? (state.drafts[cp.id] = copyDraft(state.saved[cp.id])) : null);
+  const index = FIG.checkpoints.indexOf(cp);
+  // The heading: the position's picture, the figure and which step this is.
+  $('capArt').innerHTML = poseCard(cp.pose, 'pose-lg');
+  $('capFigure').textContent = `FIGURE ${FIG.number} · DD ${FIG.dd}`;
+  $('capTitle').textContent = FIG.name;
+  $('capStep').textContent = `Step ${index + 1} of ${FIG.checkpoints.length} · ${cp.label}`;
   $('cue').innerHTML = `<b>${cp.label}.</b> ${cp.cue}`;
-  $('frameTime').textContent = d && d.time !== null ? `Frame at ${d.time.toFixed(2)} s` : '';
+  $('cpWeight').textContent = cp.weight ? `${weightWord()} ${cp.weight.toFixed(1)} · ${shareOf(cp.weight)}%` : 'reference';
+  $('frameTime').textContent = d && d.time !== null ? `${d.time.toFixed(2)} s` : '—';
+  $('refineRow').hidden = !(d && d.frame);
   $('suggest').disabled = !(d && d.frame);
   $('frameEmpty').hidden = !!(d && d.frame);
   canvas.hidden = !(d && d.frame);
@@ -400,22 +579,20 @@ function renderMarking(clearStatus = true) {
   applyZoom();
   if (clearStatus) setStatus($('markStatus'), d && d.note ? d.note : '', d && d.note ? 'warn' : '');
 
-  // point chips
+  // point chips: a coloured dot that fills in once the point is placed
   const needed = pointsNeeded(cp);
-  $('chips').innerHTML = pointsUsed(cp).map(n => `<button type="button" class="chip${d && d.points[n] ? ' placed' : ''}${needed.includes(n) ? '' : ' optional'}"
-      data-pt="${n}" aria-pressed="${state.selected === n}" title="${hintFor(FIG, n)}${needed.includes(n) ? '' : ' (optional: lets a coach\'s-eye item be measured)'}">${LANDMARKS[n].label}${needed.includes(n) ? '' : ' <small>optional</small>'}</button>`).join('');
+  $('chips').innerHTML = pointsUsed(cp).map(n => {
+    const cls = 'lm-chip chip' + (d && d.points[n] ? ' is-set placed' : '') + (state.selected === n ? ' is-active' : '') + (needed.includes(n) ? '' : ' optional');
+    const tone = n.startsWith('water') ? '#2F8FE0' : 'var(--mark, #C9471F)';
+    return `<button type="button" class="${cls}" data-pt="${n}" aria-pressed="${state.selected === n}"
+      title="${hintFor(FIG, n)}${needed.includes(n) ? '' : ' (optional: lets a coach\'s-eye item be measured)'}"><span class="dotk" style="background:${tone}"></span>${LANDMARKS[n].label}${needed.includes(n) ? '' : ' <small>optional</small>'}</button>`;
+  }).join('');
   $('pointHint').textContent = state.selected ? `Next: ${hintFor(FIG, state.selected)}.` : (d && d.frame ? 'All points placed. Drag any that are off.' : 'Capture a frame first.');
-
-  // coach's-eye checks
-  $('checks').innerHTML = '<legend>Coach\'s eye</legend>' + cp.checks.map((c, i) => `
-    <label class="check"><input type="checkbox" data-check="${i}" ${d && d.checks[i] ? 'checked' : ''} ${d && d.frame ? '' : 'disabled'}>
-      <span>${c.text}<small class="check-note" data-note="${i}"></small></span></label>`).join('');
 
   renderLive();
   renderTabs();
   draw();
 }
-
 $('chips').addEventListener('click', e => {
   const b = e.target.closest('[data-pt]');
   if (!b) return;
@@ -435,36 +612,32 @@ function renderLive() {
   const cp = cpById(state.current);
   const d = draft();
   const result = scoreCheckpoint(cp, d ? d.points : {}, d ? d.checks : [], LABELS, state.saved);
-  $('liveRows').innerHTML = result.rows.map(r => `<tr>
-      <td>${r.metric.label}</td>
-      <td class="num">${targetText(r.metric)}</td>
-      <td class="num">${r.error ? '–' : r.value.toFixed(1) + '°'}</td>
-      <td>${r.error ? `<span class="pill none">${r.error}</span>` : `${deviationGauge(r.deviation, r.metric.tol)} <span class="pill ${r.deduction.band}">${r.deduction.label}${r.deduction.value ? ' −' + r.deduction.value.toFixed(1) : ''}</span>`}</td>
-    </tr>`).join('');
-  // Coach's-eye items: measured ones are decided by the points; the rest are ticked by eye.
-  result.checkResults.forEach((c, i) => {
-    const box = $('checks').querySelector(`[data-check="${i}"]`);
-    const note = $('checks').querySelector(`[data-note="${i}"]`);
-    if (!box || !note) return;
+  // Live measurement cards with the deviation dial.
+  $('live').innerHTML = result.rows.map(r => {
+    if (r.error) return `<div class="mcard band-error"><span>${r.metric.label}</span><strong>${r.error}</strong><small>Target ${targetText(r.metric)}</small></div>`;
+    const dial = typeof deviationDial === 'function' ? deviationDial(r.deviation, r.metric.tol) : deviationGauge(r.deviation, r.metric.tol);
+    return `<div class="mcard band-${r.deduction.band}"><span>${r.metric.label}</span><strong>${r.value.toFixed(1)}°</strong>${dial}
+      <small>Target ${targetText(r.metric)} · ${r.deduction.label}${r.deduction.value ? ' −' + r.deduction.value.toFixed(1) : ''}</small></div>`;
+  }).join('');
+  // Coach's eye: measured items are decided by the points; the rest are ticked by eye.
+  let measured = 0;
+  $('checks').innerHTML = result.checkResults.map((c, i) => {
     if (c.measured) {
-      box.checked = c.pass;
-      box.disabled = true;
-      note.textContent = 'Measured: ' + c.parts.map(p => `${p.test.label.toLowerCase()} ${p.display} (needs ${p.limit})`).join('; ');
-      note.className = 'check-note ' + (c.pass ? 'ok' : 'bad');
-    } else {
-      box.checked = !!(d && d.checks[i]);
-      box.disabled = !(d && d.frame);
-      note.textContent = c.check.tests ? 'Tick by eye for now. ' + c.reason : 'Tick by eye.';
-      note.className = 'check-note';
+      measured++;
+      return `<div class="check is-measured ${c.pass ? 'is-pass' : 'is-fail'}">${icon(c.pass ? 'check' : 'alert')}<span><b>${c.check.text}</b>
+        ${c.parts.map(p => `<small>${p.test.label}: ${p.display} (needs ${p.limit})</small>`).join('')}</span></div>`;
     }
-  });
+    return `<label class="check"><input type="checkbox" data-check="${i}" ${d && d.checks[i] ? 'checked' : ''} ${d && d.frame ? '' : 'disabled'}>
+      <span>${c.check.text}<small>${c.check.tests ? 'Tick by eye for now. ' + c.reason : "Coach's eye: tick it if you see it."}</small></span></label>`;
+  }).join('');
+  const coach = result.checkResults.length - measured;
+  $('checkCount').textContent = [measured && `${measured} measured from the video`, coach && `${coach} for your coach`].filter(Boolean).join(' · ');
   const ready = d && d.frame && result.complete;
   $('liveScore').textContent = ready ? `Checkpoint score ${result.score.toFixed(1)} / 10` : '';
   const s = state.saved[cp.id];
   $('save').disabled = !(d && d.frame);
   $('save').textContent = s ? 'Save changes' : 'Save checkpoint';
 }
-
 $('save').addEventListener('click', () => {
   const cp = cpById(state.current);
   const d = draft();
@@ -679,42 +852,75 @@ function renderResults() {
   $('reportBox').hidden = true;
   setStatus($('keepStatus'), '');
   if (out.figureScore === null) {
-    box.innerHTML = '<p class="muted">Save at least one scored checkpoint to see results.</p>';
+    box.innerHTML = '<div class="card"><p class="empty-note">Save at least one scored checkpoint to see results.</p></div>';
     $('keepBox').hidden = true;
     return;
   }
   $('keepBox').hidden = false;
   $('saveProgress').textContent = historyId ? 'Update my saved progress' : 'Save to my progress';
   const savedCount = out.results.filter(r => r.saved).length;
-  const top = out.issues.slice(0, 3);
   box.innerHTML = `
-    <div class="score">
-      <span class="big">${out.figureScore.toFixed(2)}</span>
-      <span>figure score (out of ${(10 * FIG.dd).toFixed(0)})<br><span class="muted small">practice score ${out.practice.toFixed(2)} / 10 × difficulty ${FIG.dd}</span></span>
-      ${out.provisional ? `<span class="pill small">Provisional · ${savedCount} of ${FIG.checkpoints.length} checkpoints saved</span>` : `<span class="pill clean">All ${FIG.checkpoints.length} checkpoints saved</span>`}
+    <div class="scoreboard" id="scoreboard" data-complete="${!out.provisional}">
+      <div class="score-hero">
+        <p class="eyebrow">FIGURE ${FIG.number} · ${FIG.name}</p>
+        <div class="big">${out.figureScore.toFixed(2)}</div>
+        ${out.provisional ? `<span class="pill pill-warn score-flag">Provisional · ${savedCount} of ${FIG.checkpoints.length} saved</span>` : ''}
+        <p class="big-sub">Practice score ${out.practice.toFixed(2)} × DD ${FIG.dd}, out of ${(10 * FIG.dd).toFixed(0)}. ${out.provisional ? 'Save the other checkpoints on the Review step for a full total.' : 'An uncalibrated estimate from one camera angle.'}</p>
+      </div>
+      <div class="score-stats">
+        <div class="stat"><span>Practice score / 10</span><b>${out.practice.toFixed(2)}</b></div>
+        <div class="stat"><span>Degree of difficulty</span><b>${FIG.dd}</b></div>
+        <div class="stat"><span>Checkpoints saved</span><b>${savedCount} of ${FIG.checkpoints.length}</b></div>
+      </div>
     </div>
     ${summaryHtml(out)}
-    <div>
-      <h3>What to work on</h3>
-      ${top.length ? `<ol class="issues">${top.map(issueHtml).join('')}</ol>` : '<p class="muted">Nothing lost points in the saved checkpoints. Keep it up.</p>'}
+    <div class="card">
+      <div class="card-head"><h2>Diagnostics</h2><span class="pill">measured against the figure's requirements</span></div>
+      <div class="seq-strip" id="diagSeq">${FIG.checkpoints.map(cp => {
+        const r = out.results.find(x => x.checkpoint.id === cp.id);
+        return `<div class="seq-node">${poseCard(cp.pose)}<b>${cp.label}</b>${r && r.saved ? `<em style="color:${scoreColor(r.score)}">${r.score.toFixed(1)}</em>` : ''}<small>${cp.weight ? shareOf(cp.weight) + '% of score' : 'reference'}</small></div>`;
+      }).join('')}</div>
+      <div id="diagnostics">${out.results.map(resultHtml).join('')}</div>
     </div>
-    ${planHtml(out)}
-    <div style="display:grid;gap:14px">
-      <h3>Checkpoint by checkpoint</h3>
-      <p class="muted small">Orange lines are what you did. <span class="target-key">Green dashed lines</span> show where a line should be, for each measurement that lost points.</p>
-      ${out.results.map(resultHtml).join('')}
+    <div class="card">
+      <div class="card-head"><h2>What to work on</h2><span class="pill">drills ranked by score impact</span></div>
+      <div id="plan">${planHtml(out)}</div>
     </div>`;
-  // Draw the small frames.
+  // Draw the frames with your lines and the green target lines.
   for (const r of out.results) {
     if (!r.saved) continue;
     const s = state.saved[r.checkpoint.id];
-    const c = box.querySelector(`canvas[data-thumb="${r.checkpoint.id}"]`);
-    const k = Math.min(1, 480 / s.frame.width);
+    const c = box.querySelector && box.querySelector(`canvas[data-thumb="${r.checkpoint.id}"]`);
+    if (!c) continue;
+    const k = Math.min(1, 640 / s.frame.width);
     c.width = Math.round(s.frame.width * k);
     c.height = Math.round(s.frame.height * k);
     paint(c.getContext('2d'), s.frame, s.points, k, { lineWidth: 2, targets: lostMetrics(r) });
   }
 }
+
+// Results buttons: "Find this checkpoint" and "Watch the drill" (plays just the drill's part of the video here).
+$('resultsBody').addEventListener('click', e => {
+  const find = e.target.closest && e.target.closest('[data-find]');
+  if (find) {
+    selectCheckpoint(find.dataset.find);
+    document.dispatchEvent(new CustomEvent('fs-goto', { detail: 'capture' }));
+    return;
+  }
+  const watch = e.target.closest && e.target.closest('[data-watch]');
+  if (!watch) return;
+  const d = DRILLS[watch.dataset.watch];
+  const v = d && d.video;
+  if (!v) return;
+  const frame = document.createElement('iframe');
+  frame.className = 'drill-video';
+  frame.title = `${d.name}: ${v.title || 'drill video'}, by ${v.channel}`;
+  frame.src = `https://www.youtube-nocookie.com/embed/${v.id}?start=${v.start || 0}${v.end ? '&end=' + v.end : ''}&autoplay=1&rel=0&playsinline=1`;
+  frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  frame.allowFullscreen = true;
+  frame.referrerPolicy = 'strict-origin-when-cross-origin';
+  watch.replaceWith(frame);
+});
 
 // The measurements in one result that lost points (these get a target line).
 const lostMetrics = r => r.rows.filter(row => row.deduction && row.deduction.value > 0).map(row => row.metric);
@@ -846,14 +1052,6 @@ $('clearProgress').addEventListener('click', () => {
   renderProgress();
 });
 
-function issueHtml(issue) {
-  const drills = (FIG.drillsFor[issue.drillKey] || []).slice(0, 2).map(id => DRILLS[id]);
-  return `<li>
-    <b>${issue.title}</b> <span class="muted">· ${issue.checkpoint.label}</span><br>
-    <span class="small">${issue.detail}. Costs about <span class="num">${issue.cost.toFixed(2)}</span> figure points.</span><br>
-    <span class="small muted">Drills: ${drills.map(d => d.name).join(', ')} (see the practice plan)</span></li>`;
-}
-
 // ---- whole-figure summary
 function summaryHtml(out) {
   const saved = out.results.filter(r => r.saved);
@@ -865,67 +1063,100 @@ function summaryHtml(out) {
   const measured = checks.filter(c => c.measured && c.pass).length;
   const best = scored.length ? scored.reduce((a, b) => (b.score > a.score ? b : a)) : null;
   const worst = scored.length ? scored.reduce((a, b) => (b.score < a.score ? b : a)) : null;
-  const focus = !out.issues.length ? 'No deductions in the saved checkpoints.'
-    : `Focus: ${out.issues[0].title} (${out.issues[0].checkpoint.label}).`;
-  return `<div class="summary">
-    <div><span class="muted small">Strongest saved checkpoint</span><b>${best ? `${best.checkpoint.label} · ${best.score.toFixed(1)}` : '—'}</b></div>
-    <div><span class="muted small">Lowest saved score</span><b>${worst && worst !== best ? `${worst.checkpoint.label} · ${worst.score.toFixed(1)}` : '—'}</b></div>
-    <div><span class="muted small">Measurements on target</span><b class="num">${onTarget} of ${rows.length}</b></div>
-    <div><span class="muted small">Coach's-eye items met</span><b class="num">${met} of ${checks.length}</b><span class="muted small">${measured} met by measurement, ${met - measured} met by eye</span></div>
-    <p class="summary-focus">${focus}</p>
+  return `<div class="summary-stats">
+    <div class="stat"><span>Strongest saved checkpoint</span><b>${best ? `${best.checkpoint.label} · ${best.score.toFixed(1)}` : '—'}</b></div>
+    <div class="stat"><span>Lowest saved score</span><b>${worst && worst !== best ? `${worst.checkpoint.label} · ${worst.score.toFixed(1)}` : '—'}</b></div>
+    <div class="stat"><span>Measurements on target</span><b>${onTarget} of ${rows.length}</b></div>
+    <div class="stat"><span>Coach's-eye items met</span><b>${met} of ${checks.length}</b><small>${measured} met by measurement, ${met - measured} met by eye</small></div>
   </div>`;
 }
 
-// ---- practice plan: drills for the biggest problems, grouped by where you do them
+const clock = t => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}`;
+const WHERE_TEXT = { Pool: 'In the pool', Land: 'On land', 'Land or pool': 'On land or in the pool' };
+
+// One drill: where, how, how much, and its video segment (played in the card) or a written guide.
+function drillCard(id, helps) {
+  const d = DRILLS[id];
+  const v = d.video;
+  const watch = v ? `<button type="button" class="drill-watch" data-watch="${id}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="m10 8 6 4-6 4Z" fill="#FFFFFF"/></svg>
+      <span>Watch the drill · ${clock(v.start || 0)}${v.end ? '–' + clock(v.end) : ''}</span><small>${v.channel}${v.title ? ': ' + v.title : ''}</small></button>` : '';
+  return `<article class="drill-card" data-where="${d.where === 'Pool' ? 'pool' : 'land'}">
+    <div class="drill-top"><span class="drill-where">${WHERE_TEXT[d.where] || d.where}</span><h4>${d.name}</h4></div>
+    <p class="drill-how">${d.how}</p>
+    <p class="drill-dose"><b>Amount: </b>${d.dose}<small> · a starting point to agree with your coach</small></p>
+    <p class="drill-helps">Helps with: ${helps.join('; ')}</p>
+    ${watch}<a class="drill-source" href="${videoLink(d)}" target="_blank" rel="noopener">${v ? 'Open on YouTube ↗' : linkText(d) + ' ↗'}</a>
+  </article>`;
+}
+
+// ---- practice plan: the biggest problems first, each with drills (pool and land)
 function planHtml(out) {
-  const picked = new Map();   // drill id -> the problems it helps with
+  const scored = out.results.filter(r => r.saved && r.checkpoint.weight > 0);
+  if (!scored.length) return '<p class="empty-note">Save some checkpoints and a plan will appear here.</p>';
+  // Which problems each drill helps with.
+  const helps = new Map();
   for (const issue of out.issues.slice(0, 5)) {
     for (const id of (FIG.drillsFor[issue.drillKey] || []).slice(0, 2)) {
-      if (!picked.has(id)) picked.set(id, []);
-      const why = issue.title;
-      if (!picked.get(id).includes(why)) picked.get(id).push(why);
+      if (!helps.has(id)) helps.set(id, []);
+      if (!helps.get(id).includes(issue.title)) helps.get(id).push(issue.title);
     }
   }
-  if (!picked.size) return '';
-  const card = id => {
-    const d = DRILLS[id];
-    return `<div class="drill"><span class="where">${d.dose}</span><b>${d.name}</b><span>${d.how}</span>
-      <span class="small muted">Helps with: ${picked.get(id).join('; ')}</span>
-      <a href="${videoLink(d)}" target="_blank" rel="noopener">${linkText(d)}</a></div>`;
-  };
-  const ids = [...picked.keys()];
-  const pool = ids.filter(id => DRILLS[id].where === 'Pool');
-  const land = ids.filter(id => DRILLS[id].where !== 'Pool');   // "Land" and "Land or pool"
-  return `<div class="plan">
-    <h3>Practice plan</h3>
-    <p class="muted small">Drills for the top problems above. Practise with a coach or lifeguard present, and never practise breath-holding alone.</p>
-    ${pool.length ? `<h4>In the pool</h4><div class="drills">${pool.map(card).join('')}</div>` : ''}
-    ${land.length ? `<h4>On land</h4><div class="drills">${land.map(card).join('')}</div>` : ''}
-  </div>`;
+  const weakest = scored.reduce((a, b) => ((10 - b.score) * b.checkpoint.weight > (10 - a.score) * a.checkpoint.weight ? b : a));
+  let html = `<div class="plan-focus"><h3>Focus: ${weakest.checkpoint.label}</h3>
+    <p>Worth ${shareOf(weakest.checkpoint.weight)}% of the figure score and scores ${weakest.score.toFixed(1)}. Improving it moves the total more than anything else you saved.</p></div>`;
+  const used = new Set(), seen = new Set();
+  let shown = 0;
+  for (const issue of out.issues) {
+    if (shown >= 3 || seen.has(issue.drillKey)) continue;
+    const ids = (FIG.drillsFor[issue.drillKey] || []).filter(id => DRILLS[id] && !used.has(id)).slice(0, 2);
+    if (!ids.length) continue;
+    seen.add(issue.drillKey);
+    ids.forEach(id => used.add(id));
+    shown++;
+    html += `<section class="plan-item"><div class="plan-head"><span class="plan-num">${shown}</span><div>
+        <h3>${issue.title}</h3><p class="plan-detail">${issue.checkpoint.label} · ${issue.detail} · costs about ${issue.cost.toFixed(2)} figure points</p></div></div>
+      <div class="drill-grid">${ids.map(id => drillCard(id, helps.get(id) || [issue.title])).join('')}</div></section>`;
+  }
+  if (!shown) html += '<p class="empty-note">Nothing lost points in the saved checkpoints. Keep filming from the same angle and compare week to week.</p>';
+  // What the camera cannot see still gets practice, but the coach decides whether it is right.
+  const coach = scored.flatMap(r => r.checkResults.filter(c => !c.measured && !c.pass).map(c => ({ c, r })));
+  if (coach.length) {
+    html += `<section class="plan-item plan-coach"><div class="plan-head">${icon('eye')}<div>
+        <h3>Ask your coach to watch for</h3><p class="plan-detail">A side camera cannot judge these. Practise them, and let your coach confirm.</p></div></div>
+      <ul class="coach-list">${coach.map(({ c, r }) => `<li><b>${r.checkpoint.label}: </b>${c.check.text}</li>`).join('')}</ul></section>`;
+  }
+  return html + '<p class="plan-safety">Practise in the pool only with a qualified coach or lifeguard on deck, and never do breath-hold work alone. Stop any stretch or exercise that causes sharp pain.</p>';
 }
 
-function resultHtml(r) {
+// ---- one checkpoint: your frame with the target lines, beside a required-vs-your-video table
+function resultHtml(r, index = 0) {
   const cp = r.checkpoint;
+  const meta = cp.weight ? `${shareOf(cp.weight)}% of score` : 'Reference, not scored';
+  const head = `<header class="cmp-head"><div class="cmp-title"><span class="cmp-num">${index + 1}</span><h3>${cp.label}</h3></div>
+    <div class="cmp-meta"><span>${meta}</span>${r.saved ? `<b class="cmp-score" style="color:${scoreColor(r.score)}">${r.score.toFixed(1)}</b><span class="pill pill-good">Saved · ${r.time.toFixed(2)} s</span>` : ''}</div></header>`;
   if (!r.saved) {
-    return `<div class="result-cp"><div class="muted small">Not saved</div>
-      <div><h3>${cp.label}</h3><p class="muted small">No saved frame yet${cp.weight ? '' : ' (reference only)'}.</p></div></div>`;
+    return `<article class="cmp-card is-missing">${head}<div class="cmp-empty"><p>No saved frame yet. ${cp.cue || ''}</p>
+      <button type="button" class="btn btn-ghost" data-find="${cp.id}">Find this checkpoint</button></div></article>`;
   }
-  const rows = r.rows.map(row => `<tr><td>${row.metric.label}</td><td class="num">${targetText(row.metric)}</td>
-      <td class="num">${row.value.toFixed(1)}°</td><td>${deviationGauge(row.deviation, row.metric.tol)} <span class="pill ${row.deduction.band}">${row.deduction.label}${row.deduction.value ? ' −' + row.deduction.value.toFixed(1) : ''}</span></td></tr>`).join('');
-  const checks = r.checkResults.map(c => {
-    const target = c.measured ? c.parts.map(p => p.limit).join('<br>') : 'Met';
-    const yours = c.measured ? c.parts.map(p => p.display).join('<br>') : (c.pass ? 'Ticked' : 'Not ticked');
-    return `<tr><td>${c.check.text}<br><span class="muted small">${c.measured ? 'Measured' : 'By eye'}</span></td><td class="num">${target}</td><td class="num">${yours}</td>
-      <td><span class="pill ${c.pass ? 'clean' : 'small'}">${c.pass ? 'Met' : 'Not met −0.2'}</span></td></tr>`;
+  const scored = cp.weight > 0;
+  const row = (what, required, yours, cls, result, ico) =>
+    `<tr class="is-${cls}"><th>${what}</th><td>${required}</td><td class="cmp-yours">${yours}</td><td class="cmp-result"><div>${icon(ico)}<span>${result}</span></div></td></tr>`;
+  const rows = r.rows.map(m => {
+    const good = m.deduction.band === 'clean';
+    return row(m.metric.label, targetText(m.metric), `${m.value.toFixed(1)}°${Math.abs(m.value - m.deviation) > 0.05 ? ` · ${m.deviation.toFixed(1)}° off` : ''} ${deviationGauge(m.deviation, m.metric.tol)}`,
+      good ? 'good' : 'dev-' + m.deduction.band,
+      good ? BAND_TEXT.clean : (BAND_TEXT[m.deduction.band] || m.deduction.label) + (scored ? ` · −${m.deduction.value.toFixed(1)}` : ' · not scored'), good ? 'check' : 'alert');
   }).join('');
-  return `<div class="result-cp">
-    <canvas data-thumb="${cp.id}" aria-label="${cp.label} frame with the measured lines"></canvas>
-    <div style="display:grid;gap:8px;min-width:0">
-      <h3>${cp.label} · <span class="num">${r.score.toFixed(1)} / 10</span> <span class="muted small">at ${r.time.toFixed(2)} s${cp.weight ? '' : ', reference only'}</span></h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Requirement</th><th class="num">Target</th><th class="num">Your video</th><th>Result</th></tr></thead>
-        <tbody>${rows}${checks}</tbody></table></div>
-    </div></div>`;
+  const checks = r.checkResults.map(c => c.measured
+    ? row(c.check.text, c.parts.map(p => p.limit).join(' · '), c.parts.map(p => p.display).join(' · '), c.pass ? 'good' : 'dev-small',
+        c.pass ? BAND_TEXT.clean : 'Not met' + (scored ? ' · −0.2' : ' · not scored'), c.pass ? 'check' : 'alert')
+    : row(c.check.text, 'Coach checks', c.pass ? 'Ticked by you' : 'Not ticked', c.pass ? 'good' : 'coach',
+        c.pass ? 'Confirmed by you' : 'Ask your coach' + (scored ? ' · −0.2 until confirmed' : ''), c.pass ? 'check' : 'eye')).join('');
+  return `<article class="cmp-card">${head}<div class="cmp-body">
+    <figure class="cmp-figure"><canvas data-thumb="${cp.id}" role="img" aria-label="${cp.label}: your position with the target lines drawn over it"></canvas>
+      <figcaption class="cmp-legend"><span><i class="lg-yours"></i>Your position</span><span><i class="lg-req"></i>Where it should be</span></figcaption></figure>
+    <div class="cmp-table-wrap"><table class="cmp-table"><thead><tr><th>Requirement</th><th>Required</th><th>In your video</th><th>Result</th></tr></thead>
+      <tbody>${rows}${checks}</tbody></table></div></div></article>`;
 }
 
 // ---------------------------------------------------------------- start over
