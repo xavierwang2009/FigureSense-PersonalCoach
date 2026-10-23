@@ -1,9 +1,6 @@
-# FigureSense 
+# FigureSense — Artistic Swimming Practice Advisor
 
-A browser-based practice review app for Ballet Leg, Barracuda and Kip. Choose a
-figure, load a practice video, review its checkpoints, and get measured angles,
-a practice score and drills. Everything runs in
-the browser; videos are never uploaded.
+FigureSense reviews a practice video of an artistic swimming figure in the browser. It finds the figure's five checkpoints, measures the body against the figure's requirements, shows what is good and where the deviations are, and turns the biggest shortfalls into drills to practise. It is a practice tool, not a validated AI judge or an official scoring system.
 
 ## Files
 | File | Job |
