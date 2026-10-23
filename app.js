@@ -462,7 +462,7 @@ $('tabs').addEventListener('click', e => {
 function selectCheckpoint(id) {
   state.current = id;
   state.selected = null;
-  const s = state.saved[id];
+  const s = state.drafts[id] || state.saved[id];
   if (s && s.time !== null && player.duration) seekTo(player, s.time);
   renderMarking();
 }
@@ -506,14 +506,22 @@ function smallCopy(frame, width) {
 }
 
 // Fine-tune this checkpoint's frame by one video frame; the dots stay where they are.
+let shiftingFrame = false;
 async function shiftFrame(dir) {
   const d = draft();
-  if (!d || !d.frame || !player.duration) return;
-  const points = JSON.parse(JSON.stringify(d.points)), checks = [...d.checks];
-  await seekTo(player, Math.max(0, Math.min(player.duration, d.time + dir * FRAME)));
-  await captureFrame();
-  const now = draft();
-  if (now) { now.points = points; now.checks = checks; now.note = ''; renderMarking(); }
+  if (shiftingFrame || !d || !d.frame || !player.duration) return;
+  const version = reviewVersion, id = state.current;
+  shiftingFrame = true;
+  try {
+    await seekTo(player, Math.max(0, Math.min(player.duration, d.time + dir * FRAME)));
+    if (version !== reviewVersion || state.current !== id || draft() !== d) return;
+    // captureFrame keeps the current points and checks; do not restore an older copy.
+    await captureFrame();
+  } catch (err) {
+    if (version === reviewVersion && state.current === id) setStatus($('markStatus'), 'Could not move to that frame. Try again.', 'error');
+  } finally {
+    shiftingFrame = false;
+  }
 }
 $('cpEarlier').addEventListener('click', () => shiftFrame(-1));
 $('cpLater').addEventListener('click', () => shiftFrame(1));
@@ -914,6 +922,7 @@ $('resultsBody').addEventListener('click', e => {
   if (!v) return;
   const frame = document.createElement('iframe');
   frame.className = 'drill-video';
+  frame.dataset.watch = watch.dataset.watch;
   frame.title = `${d.name}: ${v.title || 'drill video'}, by ${v.channel}`;
   frame.src = `https://www.youtube-nocookie.com/embed/${v.id}?start=${v.start || 0}${v.end ? '&end=' + v.end : ''}&autoplay=1&rel=0&playsinline=1`;
   frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';

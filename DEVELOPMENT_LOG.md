@@ -56,3 +56,9 @@
 - **My update:** I used the Impeccable skill with Codex to redesign the interface, including the home page, step-by-step screens, light/dark themes, position illustrations and demo clip.
 - **Codex review:** I asked Codex to review the update. Codex added confirmation before the demo clears a review, made “New review” return to figure selection, clarified the progress-page button and labeled the home animation as a recorded demo with reviewed points.
 - **Checks:** All six current test suites and JavaScript syntax checks passed. Codex checked desktop and phone-width navigation and frame capture in the browser. This UI review did not re-evaluate pose-detection accuracy.
+
+## 2026-10-22 — Figure selection, review controls and diagnostics
+
+- **My update:** I added swimmer groups, folding figure requirements, drag-and-drop video with preview, a checkpoint timeline and thumbnails, keyboard controls, frame fine-tuning, measurement dials, a scoreboard, diagnostics and focused drills with embedded video segments.
+- **Codex review:** I asked Codex to review my changes. Codex fixed frame-switching races, thumbnail seeking, hidden video playback, score animation and progress comparisons after a DD change.
+- **Checks:** Seven test suites and syntax checks passed; browser checks covered selection, preview, capture and frame fine-tuning, including phone-width layout.

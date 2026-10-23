@@ -24,7 +24,15 @@ export function show(name, fromHistory = false) {
 }
 
 function showNow(name, fromHistory, animated) {
-  if (name !== 'upload' && name !== 'capture' && player) player.pause();
+  if (name !== 'capture' && player) player.pause();
+  if (name !== 'upload') $('uploadPreview')?.pause();
+  if (name !== 'diag') document.querySelectorAll('iframe.drill-video').forEach(frame => {
+    // Unload hidden drill playback; the source link remains available.
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'drill-watch';
+    button.dataset.watch = frame.dataset.watch; button.textContent = 'Watch the drill';
+    frame.replaceWith(button);
+  });
   document.body.dataset.page = name;
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('is-active', s.id === 'screen-' + name));
   document.querySelectorAll('.step').forEach(b => {
@@ -48,7 +56,9 @@ function animateResults() {
   const ease = 'cubic-bezier(.2,.8,.2,1)';
   const counters = [board.querySelector('.big'), board.querySelector('.stat b')].filter(Boolean);
   for (const node of counters) {
-    const text = node.textContent;
+    const text = node.dataset.scoreText || node.textContent;
+    node.dataset.scoreText = text;
+    if (node.scoreAnimation) cancelAnimationFrame(node.scoreAnimation);
     const target = parseFloat(text);
     if (!Number.isFinite(target)) continue;
     const decimals = (text.split('.')[1] || '').replace(/\D.*$/, '').length;
@@ -56,9 +66,9 @@ function animateResults() {
     const tick = now => {
       const u = Math.min(1, (now - start) / 1100);
       node.textContent = u < 1 ? (target * (1 - Math.pow(1 - u, 4))).toFixed(decimals) : text;
-      if (u < 1) requestAnimationFrame(tick);
+      if (u < 1) node.scoreAnimation = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
+    node.scoreAnimation = requestAnimationFrame(tick);
   }
   [...document.querySelectorAll('#diagSeq .seq-node, #diagnostics .cmp-card, #plan > *, #plan .drill-card')].forEach((node, i) => {
     node.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }],

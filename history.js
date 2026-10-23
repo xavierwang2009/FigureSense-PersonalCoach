@@ -32,6 +32,7 @@ export function makeReview(figure, out, swimmer) {
     date: new Date().toISOString(),
     swimmer: swimmer.trim(),
     figure: figure.number,
+    dd: figure.dd,
     scoringVersion: 2,   // includes measured coach’s-eye checks
     figureScore: +out.figureScore.toFixed(2),
     provisional: out.provisional,
@@ -55,11 +56,13 @@ export function clearHistory() {
   return store([]);
 }
 
+const reviewDD = r => r.dd ?? ({ '101': 1.6, '301': 1.9, '311': 1.6 }[r.figure]);
+
 // The review just before this one for the same swimmer and figure, if any.
 export function previousFor(list, review) {
   const name = review.swimmer.toLowerCase();
   return list
-    .filter(r => (r.scoringVersion || 1) === (review.scoringVersion || 1) && r.id !== review.id && r.figure === review.figure && r.swimmer.toLowerCase() === name && r.date < review.date
+    .filter(r => (r.scoringVersion || 1) === (review.scoringVersion || 1) && r.id !== review.id && r.figure === review.figure && reviewDD(r) === reviewDD(review) && r.swimmer.toLowerCase() === name && r.date < review.date
       && Object.keys(r.scores).length === Object.keys(review.scores).length
       && Object.keys(review.scores).every(id => (r.scores[id] === null) === (review.scores[id] === null)))
     .sort((a, b) => (a.date < b.date ? 1 : -1))[0] || null;
