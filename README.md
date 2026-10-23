@@ -40,6 +40,13 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
   each drill's video segment playing in the card, a "watch for" list for the coach, and a safety line.
 - **Progress:** saved reviews on this device (unchanged).
 
+## Look and feel
+
+- **Home:** a recorded demo of Xavier's Ballet Leg with reviewed tracking. His clip plays with the skeleton overlaid, locks onto each checkpoint with the measured angle and verdict, and ends on the next focus. Drag the scrubber or use the arrow and Page Up/Down keys; the pause button stops the motion.
+- **Themes:** deep marine dark and warm sand light. The system setting is followed until the switch in the top bar is used; the choice is remembered on that device.
+- **Navigation:** the four review steps and Progress sit in a floating glass tab bar; a highlight glides to the tab you open.
+- **Motion:** an animated logo, water ripples that trail the pointer, page transitions, position cards that flip and tilt in 3D, and a score that counts up when Results open. Decorative motion is disabled and the demo starts paused when the device asks for reduced motion.
+
 ## Development record
 See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for the reported local starting point,
 the GitHub import, and subsequent changes and test observations.
