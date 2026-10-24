@@ -2,28 +2,43 @@
 
 [Open the app](https://figuresense-swim.lx2rice.chatgpt.site) — no installation needed.
 
-FigureSense reviews a practice video of an artistic swimming figure in the browser. It suggests the figure's checkpoints for you to review, measures the body against the figure's requirements, shows what is good and where the deviations are, and turns the biggest shortfalls into drills to practise. Ballet Leg has five checkpoints; Barracuda and Kip each have four. It is a practice tool, not a validated AI judge or an official scoring system.
+FigureSense reviews a practice video of an artistic swimming figure in the browser. It suggests the figure's checkpoints for you to review, measures the body against the figure's requirements, shows what is good and where the deviations are, and turns the biggest shortfalls into drills to practise. The figure picker follows swimmer groups; Ballet Leg includes five-checkpoint review and automatic suggestions. It is a practice tool, not a validated AI judge or an official scoring system.
 
-## Files
+## Source and reproduction
+
+This source matches the published app. Edit the JavaScript in `src/`, then rebuild the bundled HTML:
+
+```sh
+python3 scripts/build.py
+python3 scripts/serve.py 8000
+```
+
+Open http://localhost:8000. Python is only used to build and serve the files; video analysis runs in the browser.
+
 | File | Job |
 |---|---|
-| `index.html` | The page and its styling |
-| `figures.js` | Figure data (Ballet Leg, Barracuda, Kip): checkpoints, requirements, coach's-eye items, drills |
-| `geometry.js` | Angles against the waterline, deductions, checkpoint and figure scores |
-| `poses.js` | Small still drawings of each position |
-| `autoscan.js` | MediaPipe pose detection and scanning the video |
-| `ballet-assist.js` | Picks the five moments and turns a pose into suggested points |
-| `figure-assist.js` | Finds the checkpoint moments automatically for Barracuda and Kip (Ballet Leg uses `ballet-assist.js`) |
-| `nav.js` | Step-by-step screens (Home, Figure, Video, Review, Results, Progress), tab highlight, Illustration/Diagram switch |
-| `theme.css` | The FigureSense prototype's stylesheet, copied unchanged for the same look; app-specific styles stay in `index.html` |
-| `hero-assets/`, `art/`, `demo-assets/`, `figuresense-icon.png` | The prototype's home page, theme switch and intro, position illustrations, my demo clip and icon |
-| `app.js` | Connects the page: video, capture, marking, saving, results |
-| `history.js` | Saves scores and feedback on this device and compares compatible reviews |
-| `report.js` | Creates a downloadable report image with checkpoint frames, scores and feedback |
+| `index.html`, `FigureSense-Hero.html` | Matching entry pages with bundled application modules |
+| `src/app.js` | Navigation, video review, editable landmarks, results and drills |
+| `src/figures.js` | Swimmer groups, figure requirements and drills |
+| `src/geometry.js` | Measurements and practice scoring |
+| `src/poses.js` | Position illustrations |
+| `src/autoscan.js`, `src/ballet-assist.js` | Pose detection and Ballet Leg checkpoint suggestions |
+| `hero-assets/`, `demo-assets/`, `figuresense-icon.png` | Homepage styling, scripts and approved demo media |
+| `scripts/build.py` | Rebuilds the entry pages from `src/` |
+| `scripts/package_demo.py` | Regenerates the portable demo archive |
+| `tests/` | Geometry, measurement and demo consistency checks |
+| `app.js`, `style.css`, `docs/legacy-mvp.md` | Earlier MVP retained for its geometry test; not loaded by the current page |
 
-## Try it on your own computer
-In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
-(Opening index.html directly from Finder won't work, because browsers block modules from files.)
+Run the checks from this folder:
+
+```sh
+python3 scripts/build.py --check
+node tests/geometry.cjs
+node tests/measurements.cjs
+node tests/current-demo.cjs
+```
+
+To rebuild the downloadable demo, run `python3 scripts/package_demo.py` after rebuilding the pages.
 
 ## Notes
 - "Suggest body points" and "Find the moments for me" download MediaPipe Pose
@@ -32,28 +47,27 @@ In this folder run `python3 -m http.server 8000` and open http://localhost:8000.
 
 ## Screens
 - **Figure:** pick the swimmer group (Novice, Intermediate, 12 & Under, Youth) and a figure from that group's sheet.
-  Figures the app can't review yet are greyed out. The figure card has the description, the position sequence
+  Review capabilities vary by figure. The figure card has the description, the position sequence
   with each position's share of the score, and the technical requirements.
 - **Video:** choose or drop a clip; a preview plays under the box.
 - **Review:** a heading with the position picture, a checkpoint stepper with scores, a timeline with numbered marks,
-  ±0.5 s / ±1 frame buttons, keyboard shortcuts (←/→, Shift, Space, C), thumbnails of captured frames,
-  "Inspect & fine-tune" (move the frame ±1 frame and keep the dots), coloured point chips, Coach's eye and
+  ±0.5 s / ±0.033 s buttons, keyboard shortcuts (←/→, Shift, Space, C), thumbnails of captured frames,
+  "Inspect & fine-tune" (move the frame ±0.033 s and keep the dots), coloured point chips, Coach's eye and
   measurement cards with dials.
 - **Results:** a scoreboard that counts up, a diagnostics card per checkpoint (your frame with target lines beside a
   required-vs-your-video table), and "What to work on": the focus position, the top problems with pool and land drills,
   each drill's video segment playing in the card, a "watch for" list for the coach, and a safety line.
-- **Progress:** saved reviews on this device (unchanged).
 
 ## Look and feel
 
 - **Home:** a recorded demo of Xavier's Ballet Leg with reviewed tracking. His clip plays with the skeleton overlaid, locks onto each checkpoint with the measured angle and verdict, and ends on the next focus. Drag the scrubber or use the arrow and Page Up/Down keys; the pause button stops the motion.
 - **Themes:** deep marine dark and warm sand light. The system setting is followed until the switch in the top bar is used; the choice is remembered on that device.
-- **Navigation:** the four review steps and Progress sit in a floating glass tab bar; a highlight glides to the tab you open.
+- **Navigation:** the four review steps sit in a floating glass tab bar; a highlight glides to the tab you open.
 - **Motion:** an animated logo, water ripples that trail the pointer, page transitions, position cards that flip and tilt in 3D, and a score that counts up when Results open. Decorative motion is disabled and the demo starts paused when the device asks for reduced motion.
 
 ## Privacy and safety
 
-Videos and working frames stay in browser memory; refreshing clears the current review. Scores and feedback explicitly saved to Progress remain in this browser on this device, but videos and frames are not saved there. Download a report image to keep the frames. Clearing browser site data removes saved progress. Pose detection loads MediaPipe code and model files from jsDelivr and Google storage, the app loads Google Fonts, and a drill video loads from YouTube's privacy-enhanced player only when **Watch the drill** is pressed. No video is sent to an analysis service.
+Videos and working frames stay in browser memory; refreshing clears the current review. Pose detection loads MediaPipe code and model files from jsDelivr and Google storage, the app loads Google Fonts, and a drill video loads from YouTube's privacy-enhanced player only when **Watch the drill** is pressed. No video is sent to an analysis service.
 
 The project owner expressly approved publishing the included Xavier portrait, the selected Ballet Leg demo clip and the downloadable archive. This approval does not extend to other athletes or uploads. Do not commit consent records, private review exports, credentials, or additional athlete media without authorization.
 

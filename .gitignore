@@ -1,0 +1,21 @@
+.DS_Store
+Thumbs.db
+.env
+.env.*
+node_modules/
+.openai/
+*.mp4
+*.mov
+*.MOV
+*.MP4
+*.webm
+*.zip
+figuresense-review*.json
+private-data/
+consent-forms/
+
+# Approved public FigureSense demonstration assets
+!demo-assets/xavier-ballet-leg-demo.mp4
+!downloads/FigureSense-Demo.zip
+
+/downloads/FigureSense-Demo.html
