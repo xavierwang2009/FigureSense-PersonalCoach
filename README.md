@@ -1,6 +1,6 @@
 # FigureSense — Artistic Swimming Practice Advisor
 
-[Open the app](https://figuresense-swim.lx2rice.chatgpt.site) — no installation needed.
+[Open the app](https://xavierwang2009.github.io/FigureSense-PersonalCoach) — no installation needed.
 
 FigureSense reviews a practice video of an artistic swimming figure in the browser. It suggests the figure's checkpoints for you to review, measures the body against the figure's requirements, shows what is good and where the deviations are, and turns the biggest shortfalls into drills to practise. The figure picker follows swimmer groups; Ballet Leg includes five-checkpoint review and automatic suggestions. It is a practice tool, not a validated AI judge or an official scoring system.
 
